@@ -62,7 +62,8 @@
   .day.today { background: var(--today); border-color: var(--accent); }
   .day.past { opacity: .55; }
   html { overflow-x: hidden; }
-  #wclip { overflow: hidden; overflow: clip; margin: 0 -16px; padding: 0 16px; }
+  #wclip { overflow: hidden; overflow: clip; margin: 0 -16px; padding: 0 16px; position: relative; }
+  .wghost { position: absolute; top: 0; left: 16px; right: 16px; pointer-events: none; will-change: transform; }
   #weeks { touch-action: pan-y; will-change: transform; }
   .day.fold { min-height: 0; padding: 5px 10px; }
   .day.fold .day-h { margin-bottom: 0; }
@@ -291,8 +292,12 @@ const PAST_OPEN = new Set();
 function render() {
   const start = windowStart(DATA.today);
   $('tabs').innerHTML = TAB_NAMES.map((n, i) => '<button class="tab' + (i === WEEK ? ' on' : '') + '" data-w="' + i + '">' + n + '<small><bdi dir="ltr">' + rangeLabel(addDays(start, i * 7)) + '</bdi></small></button>').join('');
+  document.getElementById('weeks').innerHTML = weekHtml(WEEK);
+}
+function weekHtml(w) {
+  const start = windowStart(DATA.today);
   let html = '';
-  for (let w = WEEK; w <= WEEK; w++) {
+  {
     const ws = addDays(start, w * 7);
     html += '<section class="week"><h2>' + WEEK_NAMES[w] + ' <small><bdi dir="ltr">' + rangeLabel(ws) + '</bdi></small></h2><div class="days">';
     for (let d = 0; d < 7; d++) {
@@ -308,7 +313,7 @@ function render() {
     }
     html += '</div></section>';
   }
-  document.getElementById('weeks').innerHTML = html;
+  return html;
 }
 
 // ---------- input ----------
@@ -664,11 +669,13 @@ function settings() {
   const cur = micSize();
   openDlg('<h3>הגדרות</h3><p style="color:var(--muted);margin-top:0">חלות על המכשיר הזה בלבד.</p>' +
     '<b>גודל המיקרופון</b><div class="opt">' + Object.keys(MIC_SIZES).map(k => '<button class="btn' + (MIC_SIZES[k] === cur ? ' on' : '') + '" data-ms="' + MIC_SIZES[k] + '">' + k + '</button>').join('') + '</div>' +
+    '<b>סגנון ההחלקה בין שבועות</b><div class="opt"><button class="btn' + (swipeFx() === 'blur' ? ' on' : '') + '" data-fx="blur">טשטוש</button><button class="btn' + (swipeFx() === 'carousel' ? ' on' : '') + '" data-fx="carousel">קרוסלה</button></div>' +
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
+  dlg.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { try { localStorage.setItem('swipeFx', b.dataset.fx); } catch (e) {} settings(); });
   $('sMicReset').onclick = () => { try { localStorage.removeItem('micPos'); } catch (e) {} const m = $('mic'); m.style.left = m.style.top = m.style.right = m.style.bottom = ''; };
   $('sWho').onclick = () => askWho(false);
   if ($('sPush')) $('sPush').onclick = async () => { const ok = await enablePush(); settings(); if (!ok) showErr('לא הצלחתי להפעיל התראות. אם חסמת אותן, צריך לאשר בהגדרות האתר בכרום.'); };
@@ -908,34 +915,57 @@ function toggleMic() {
 $('btnDate').onclick = () => { const d = $('datePick'); d.value = DATA.today; try { d.showPicker(); } catch (e) { d.style.cssText = 'display:block;position:static;opacity:1;pointer-events:auto;width:auto;height:auto'; d.focus(); } };
 $('datePick').onchange = e => { if (e.target.value) { showDay(e.target.value); } };
 $('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (!h) return; const day = h.parentElement; const ds = day.id.replace('d-', ''); if (day.classList.contains('fold')) { PAST_OPEN.add(ds); render(); } else if (day.classList.contains('past')) { PAST_OPEN.delete(ds); render(); } else showDay(ds); });
-// החלקה בין שבועות, כמו משיכה: השבוע זז עם האצבע. החלקה ימינה = השבוע הבא נכנס משמאל, החלקה שמאלה = הקודם.
+// החלקה בין שבועות, כמו משיכה: השבוע זז עם האצבע והשבוע השכן נכנס. ימינה = הבא (נכנס משמאל), שמאלה = הקודם.
+// שני סגנונות (בהגדרות): "טשטוש" (ברירת מחדל) ו"קרוסלה".
+function swipeFx() { try { return localStorage.getItem('swipeFx') === 'carousel' ? 'carousel' : 'blur'; } catch (e) { return 'blur'; } }
 (() => {
-  const w = $('weeks'); let st = null;
+  const w = $('weeks'), clip = $('wclip'); let st = null, ghost = null, gdir = 0;
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const setX = (x, anim) => { w.style.transition = anim ? 'transform .18s ease-out, opacity .18s ease-out' : 'none'; w.style.transform = x ? 'translateX(' + x + 'px)' : ''; w.style.opacity = x ? String(Math.max(.35, 1 - Math.abs(x) / 450)) : ''; };
   const canGo = dx => { const n = WEEK + (dx > 0 ? 1 : -1); return n >= 0 && n < TAB_NAMES.length; };
+  const GAP = () => swipeFx() === 'carousel' ? 24 : 0;
+  function paint(x, anim) {
+    const W = w.offsetWidth || 360, fx = swipeFx(), tr = anim ? 'transform .22s cubic-bezier(.2,.8,.2,1), opacity .22s ease-out, filter .22s ease-out' : 'none';
+    const p = Math.min(1, Math.abs(x) / (W + GAP()));
+    const set = (el, tx, op, bl, sc) => { el.style.transition = tr; el.style.transform = 'translateX(' + tx + 'px)' + (sc !== 1 ? ' scale(' + sc + ')' : ''); el.style.opacity = op; el.style.filter = bl ? 'blur(' + bl + 'px)' : ''; };
+    if (fx === 'carousel') set(w, x, 1 - .35 * p, 0, 1 - .05 * p); else set(w, x, 1 - .55 * p, p * 4, 1);
+    if (ghost) {
+      const off = -gdir * (W + GAP());
+      if (fx === 'carousel') set(ghost, x + off, .65 + .35 * p, 0, .95 + .05 * p); else set(ghost, x + off, .45 + .55 * p, (1 - p) * 4, 1);
+    }
+  }
+  function clear() { [w, ghost].forEach(el => { if (el) { el.style.transition = 'none'; el.style.transform = ''; el.style.opacity = ''; el.style.filter = ''; } }); }
+  function dropGhost() { if (ghost) { ghost.remove(); ghost = null; gdir = 0; } }
+  function ensureGhost(dx) {
+    const dir = dx > 0 ? 1 : -1;
+    if (ghost && gdir === dir) return;
+    dropGhost();
+    const n = WEEK + dir; if (n < 0 || n >= TAB_NAMES.length) return;
+    ghost = document.createElement('main'); ghost.className = 'wghost'; ghost.innerHTML = weekHtml(n); gdir = dir;
+    clip.appendChild(ghost);
+  }
   w.addEventListener('touchstart', e => { st = e.touches.length === 1 && !dlg.open ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), lock: null } : null; }, { passive: true });
   w.addEventListener('touchmove', e => {
     if (!st) return;
     const t = e.touches[0], dx = t.clientX - st.x, dy = t.clientY - st.y;
     if (st.lock === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) st.lock = Math.abs(dx) > Math.abs(dy) * 0.9 ? 'h' : 'v';
     if (st.lock !== 'h') return;
-    setX(canGo(dx) ? dx * 0.9 : dx * 0.25, false);
+    if (canGo(dx)) { ensureGhost(dx); paint(dx * 0.95, false); } else { dropGhost(); paint(dx * 0.25, false); }
   }, { passive: true });
   const end = e => {
     if (!st) return; const s0 = st; st = null;
     if (s0.lock !== 'h') return;
     const t = (e.changedTouches && e.changedTouches[0]) || { clientX: s0.x }, dx = t.clientX - s0.x, fast = Math.abs(dx) > 30 && Date.now() - s0.t < 300;
-    if (e.type === 'touchcancel' || !(Math.abs(dx) > 60 || fast) || !canGo(dx)) { setX(0, true); return; }
+    const back = () => { if (ghost) { paint(0, true); setTimeout(() => { dropGhost(); clear(); }, 230); } else { paint(0, true); setTimeout(clear, 230); } };
+    if (e.type === 'touchcancel' || !(Math.abs(dx) > 60 || fast) || !canGo(dx)) { back(); return; }
     const dir = dx > 0 ? 1 : -1, W = w.offsetWidth || 360;
-    const finish = () => {
-      WEEK += dir; render(); window.scrollTo({ top: Math.min(window.scrollY, $('tabs').offsetTop), behavior: 'auto' });
+    ensureGhost(dx);
+    const done = () => {
+      WEEK += dir; render(); dropGhost(); clear();
+      window.scrollTo({ top: Math.min(window.scrollY, $('tabs').offsetTop), behavior: 'auto' });
       const on = document.querySelector('.tab.on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
-      if (reduce) { setX(0, false); return; }
-      setX(-dir * W * 0.5, false); void w.offsetWidth; setX(0, true);
     };
-    if (reduce) { finish(); return; }
-    setX(dir * W * 0.6, true); setTimeout(finish, 150);
+    if (reduce) { done(); return; }
+    paint(dir * (W + GAP()), true); setTimeout(done, 230);
   };
   w.addEventListener('touchend', end, { passive: true });
   w.addEventListener('touchcancel', end, { passive: true });
