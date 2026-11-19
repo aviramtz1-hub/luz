@@ -916,8 +916,8 @@ $('btnDate').onclick = () => { const d = $('datePick'); d.value = DATA.today; tr
 $('datePick').onchange = e => { if (e.target.value) { showDay(e.target.value); } };
 $('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (!h) return; const day = h.parentElement; const ds = day.id.replace('d-', ''); if (day.classList.contains('fold')) { PAST_OPEN.add(ds); render(); } else if (day.classList.contains('past')) { PAST_OPEN.delete(ds); render(); } else showDay(ds); });
 // החלקה בין שבועות, כמו משיכה: השבוע זז עם האצבע והשבוע השכן נכנס. ימינה = הבא (נכנס משמאל), שמאלה = הקודם.
-// שני סגנונות (בהגדרות): "טשטוש" (ברירת מחדל) ו"קרוסלה".
-function swipeFx() { try { return localStorage.getItem('swipeFx') === 'carousel' ? 'carousel' : 'blur'; } catch (e) { return 'blur'; } }
+// שני סגנונות (בהגדרות): "קרוסלה" (ברירת מחדל) ו"טשטוש".
+function swipeFx() { try { return localStorage.getItem('swipeFx') === 'blur' ? 'blur' : 'carousel'; } catch (e) { return 'carousel'; } }
 (() => {
   const w = $('weeks'), clip = $('wclip'); let st = null, ghost = null, gdir = 0;
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
