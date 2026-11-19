@@ -72,6 +72,11 @@
   .item.one { background: var(--star-bg); border-radius: 6px; padding: 3px 5px; margin: 2px 0; }
   .item.one::before { content: "★ "; color: var(--star); }
   .item.off { text-decoration: line-through; color: var(--muted); }
+  .item.busy-edit, .item.busy-del { position: relative; border-radius: 8px; animation: busyGlow 1.2s ease-in-out infinite; background: linear-gradient(100deg, transparent 30%, var(--busy-sh) 50%, transparent 70%) 0 0/250% 100% no-repeat, var(--busy-bg); }
+  .item.busy-edit { --busy: #f08c00; --busy-bg: rgba(240,140,0,.08); --busy-sh: rgba(240,140,0,.28); }
+  .item.busy-del  { --busy: #e03131; --busy-bg: rgba(224,49,49,.07); --busy-sh: rgba(224,49,49,.25); }
+  @keyframes busyGlow { 0% { box-shadow: 0 0 0 1.5px var(--busy); background-position: 130% 0, 0 0; } 50% { box-shadow: 0 0 0 3px var(--busy), 0 0 10px var(--busy); } 100% { box-shadow: 0 0 0 1.5px var(--busy); background-position: -30% 0, 0 0; } }
+  @media (prefers-reduced-motion: reduce) { .item.busy-edit, .item.busy-del { animation: none; box-shadow: 0 0 0 2px var(--busy); } }
   .empty { color: var(--muted); font-size: 13px; }
 
   dialog { border: 1px solid var(--line); border-radius: 14px; padding: 16px; width: min(440px, calc(100vw - 32px)); }
@@ -479,11 +484,26 @@ async function doConfirm() {
   showDays(dates);
 }
 
+// סימון חי על פריט שנמצא בעריכה (כתום) או במחיקה (אדום) עד שהשמירה מסתיימת
+const BUSY_KIND = { edit_item: 'edit', edit_recurring: 'edit', cancel: 'edit', uncancel: 'edit', delete_item: 'del', delete_recurring: 'del' };
+function markBusy(actions) {
+  const els = [];
+  actions.forEach(a => {
+    const kind = BUSY_KIND[a.type], id = a.itemId || a.recurringId; if (!kind || !id) return;
+    document.querySelectorAll('.item[data-id="' + CSS.escape(id) + '"]').forEach(el => {
+      if ((a.type === 'cancel' || a.type === 'uncancel') && el.dataset.date !== a.date) return;
+      el.classList.add('busy-' + kind); els.push(el);
+    });
+  });
+  return () => els.forEach(el => el.classList.remove('busy-edit', 'busy-del'));
+}
+
 async function save(actions) {
   if (!actions.length) return false;
   showErr('');
-  try { DATA = await call('applyActions', actions, { me: ME(), lines: actions.map(plain).filter(String), dates: affectedDates(actions) }); render(); return true; }
-  catch (e) { showErr(e.message || String(e)); return false; }
+  const unmark = markBusy(actions);
+  try { DATA = await call('applyActions', actions, { me: ME(), lines: actions.map(plain).filter(String), dates: affectedDates(actions) }); unmark(); render(); return true; }
+  catch (e) { unmark(); showErr(e.message || String(e)); return false; }
 }
 
 // ---------- dialogs ----------
