@@ -61,6 +61,8 @@
   .day { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; min-height: 64px; }
   .day.today { background: var(--today); border-color: var(--accent); }
   .day.past { opacity: .55; }
+  .day.fold { min-height: 0; padding: 5px 10px; }
+  .day.fold .day-h { margin-bottom: 0; }
   .day-h { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
   .day-h b { font-size: 15px; }
   .day-h span { color: var(--muted); font-size: 13px; }
@@ -282,6 +284,7 @@ function agendaText(days) {
 const WEEK_NAMES = ['השבוע הקרוב', 'שבוע הבא', 'עוד שבועיים', 'עוד שלושה שבועות'];
 const TAB_NAMES = ['השבוע', 'שבוע הבא', 'עוד שבועיים', 'עוד 3 שבועות'];
 let WEEK = 0;
+const PAST_OPEN = new Set();
 function render() {
   const start = windowStart(DATA.today);
   $('tabs').innerHTML = TAB_NAMES.map((n, i) => '<button class="tab' + (i === WEEK ? ' on' : '') + '" data-w="' + i + '">' + n + '<small><bdi dir="ltr">' + rangeLabel(addDays(start, i * 7)) + '</bdi></small></button>').join('');
@@ -291,11 +294,13 @@ function render() {
     html += '<section class="week"><h2>' + WEEK_NAMES[w] + ' <small><bdi dir="ltr">' + rangeLabel(ws) + '</bdi></small></h2><div class="days">';
     for (let d = 0; d < 7; d++) {
       const ds = addDays(ws, d);
-      const cls = ds === DATA.today ? ' today' : (ds < DATA.today ? ' past' : '');
+      const isPast = ds < DATA.today;
+      const fold = isPast && !PAST_OPEN.has(ds);
+      const cls = ds === DATA.today ? ' today' : (isPast ? ' past' : '') + (fold ? ' fold' : '');
       const hol = (HOL[ds] || []).map(h => '<span class="hol">' + esc(h) + '</span>').join(' ');
       const ents = dayEntries(ds);
-      html += '<div class="day' + cls + '" id="d-' + ds + '"><div class="day-h"><b>' + DAYS[d] + '</b><span>' + short(ds) + '</span>' + hol + '</div>';
-      html += ents.length ? ents.map(e => '<button class="item' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '" data-k="' + e.kind + '" data-id="' + esc(e.id) + '" data-date="' + ds + '">' + line(e) + '</button>').join('') : '<div class="empty">—</div>';
+      html += '<div class="day' + cls + '" id="d-' + ds + '"><div class="day-h"><b>' + DAYS[d] + '</b><span>' + short(ds) + '</span>' + (fold ? '<span>· ' + (ents.length ? ents.length + ' פריטים' : 'ריק') + ' ▾</span>' : hol) + '</div>';
+      if (!fold) html += ents.length ? ents.map(e => '<button class="item' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '" data-k="' + e.kind + '" data-id="' + esc(e.id) + '" data-date="' + ds + '">' + line(e) + '</button>').join('') : '<div class="empty">—</div>';
       html += '</div>';
     }
     html += '</div></section>';
@@ -897,7 +902,7 @@ function toggleMic() {
 })();
 $('btnDate').onclick = () => { const d = $('datePick'); d.value = DATA.today; try { d.showPicker(); } catch (e) { d.style.cssText = 'display:block;position:static;opacity:1;pointer-events:auto;width:auto;height:auto'; d.focus(); } };
 $('datePick').onchange = e => { if (e.target.value) { showDay(e.target.value); } };
-$('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (h) showDay(h.parentElement.id.replace('d-', '')); });
+$('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (!h) return; const day = h.parentElement; const ds = day.id.replace('d-', ''); if (day.classList.contains('fold')) { PAST_OPEN.add(ds); render(); } else showDay(ds); });
 $('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) { WEEK = +b.dataset.w; render(); } });
 $('btnGo').onclick = () => { if ($('btnGo').dataset.busy) { if (CANCEL) CANCEL(); } else submitText(); };
 $('txt').setAttribute('enterkeyhint', 'send');
