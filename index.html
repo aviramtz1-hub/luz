@@ -197,6 +197,7 @@
       <button class="btn" id="btnDate" title="מה יש ביום מסוים">📅 תאריך</button>
       <input type="date" id="datePick" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px" tabindex="-1">
       <input type="file" id="file" accept="image/*" hidden>
+      <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
       <span class="hint">אפשר לדבר במיקרופון (גוררים אותו לאן שנוח), או להדביק צילום של הודעה.</span>
     </div>
     <div id="err" class="err" hidden></div>
@@ -350,7 +351,7 @@ async function submitPhoto(file) {
     const { data, mime } = await shrinkImage(file);
     showConfirm(await runCancelable(call('parseInput', $('txt').value.trim(), data, mime, agendaText(21)), 90000));
   } catch (e) { if (e.message !== '__cancel__') showErr(e.message || String(e)); }
-  finally { busy(false); $('file').value = ''; }
+  finally { busy(false); $('file').value = ''; $('fileCam').value = ''; }
 }
 
 function shrinkImage(file) {
@@ -974,8 +975,14 @@ $('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); i
 $('btnGo').onclick = () => { if ($('btnGo').dataset.busy) { if (CANCEL) CANCEL(); } else submitText(); };
 $('txt').setAttribute('enterkeyhint', 'send');
 $('txt').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!$('btnGo').dataset.busy) submitText(); } });
-$('btnPhoto').onclick = () => $('file').click();
+$('btnPhoto').onclick = () => {
+  openDlg('<h3>צילום הודעה</h3><div class="dlg-actions"><button class="btn primary" id="pCam">📷 לצלם עכשיו</button><button class="btn" id="pGal">🖼️ לבחור תמונה מהגלריה</button><button class="btn" id="pCancel">ביטול</button></div>');
+  $('pCam').onclick = () => { closeDlg(); $('fileCam').click(); };
+  $('pGal').onclick = () => { closeDlg(); $('file').click(); };
+  $('pCancel').onclick = closeDlg;
+};
 $('file').onchange = e => { const f = e.target.files[0]; if (f) submitPhoto(f); };
+$('fileCam').onchange = e => { const f = e.target.files[0]; if (f) submitPhoto(f); };
 // הדבקת תמונה (Ctrl+V או "הדבקה" בטלפון) או גרירת תמונה לשורת הכתיבה
 $('txt').addEventListener('paste', e => {
   const it = [...((e.clipboardData && e.clipboardData.items) || [])].find(i => i.kind === 'file' && /^image\//.test(i.type));
