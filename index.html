@@ -91,8 +91,10 @@
   .tab.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
   .tab small { opacity: .75; font-size: 12px; margin-inline-start: 4px; }
   @media (max-width: 560px) { .tab { flex: 1 1 0; padding: 6px 2px; font-size: 13px; display: flex; flex-direction: column; align-items: center; line-height: 1.2; } .tab small { margin: 0; font-size: 11px; } }
-  .mic { position: fixed; bottom: 20px; left: 20px; width: 64px; height: 64px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer; z-index: 20; display: grid; place-items: center; }
-  .mic svg { width: 28px; height: 28px; }
+  .mic { position: fixed; bottom: 20px; left: 20px; width: var(--mic, 54px); height: var(--mic, 54px); border-radius: 50%; border: 0; background: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer; z-index: 20; display: grid; place-items: center; }
+  .mic svg { width: 44%; height: 44%; }
+  .opt { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 14px; }
+  .opt button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   .mic.rec { background: #dc2626; animation: pulse 1.2s infinite; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(220,38,38,.5); } 100% { box-shadow: 0 0 0 18px rgba(220,38,38,0); } }
   .listening { position: fixed; bottom: 96px; left: 12px; right: 12px; max-width: 460px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; z-index: 30; box-shadow: 0 8px 28px rgba(0,0,0,.28); }
@@ -167,7 +169,8 @@
 <div class="app">
   <header>
     <h1>הלו"ז שלנו</h1>
-    <button class="btn small" id="btnMe"></button>
+    <button class="btn small" id="btnMe" hidden></button>
+    <button class="btn small" id="btnSet" aria-label="הגדרות" title="הגדרות">⚙️</button>
     <button class="btn small" id="btnRec">קבועים</button>
     <button class="btn small" id="btnPrint">הדפסה</button>
   </header>
@@ -534,6 +537,25 @@ async function refresh() {
 setInterval(refresh, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 $('btnMe').onclick = () => askWho(false);
+
+// ---------- הגדרות (נשמרות במכשיר הזה בלבד) ----------
+const MIC_SIZES = { 'קטן': 46, 'רגיל': 54, 'גדול': 64 };
+function micSize() { try { return +localStorage.getItem('micSize') || 54; } catch (e) { return 54; } }
+function applyMicSize() { document.documentElement.style.setProperty('--mic', micSize() + 'px'); }
+applyMicSize();
+function settings() {
+  const cur = micSize();
+  openDlg('<h3>הגדרות</h3><p style="color:var(--muted);margin-top:0">חלות על המכשיר הזה בלבד.</p>' +
+    '<b>גודל המיקרופון</b><div class="opt">' + Object.keys(MIC_SIZES).map(k => '<button class="btn' + (MIC_SIZES[k] === cur ? ' on' : '') + '" data-ms="' + MIC_SIZES[k] + '">' + k + '</button>').join('') + '</div>' +
+    '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
+    '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
+    '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
+  dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
+  $('sMicReset').onclick = () => { try { localStorage.removeItem('micPos'); } catch (e) {} const m = $('mic'); m.style.left = m.style.top = m.style.right = m.style.bottom = ''; };
+  $('sWho').onclick = () => askWho(false);
+  $('sClose').onclick = closeDlg;
+}
+$('btnSet').onclick = settings;
 
 function peopleOptions(sel) {
   return '<option value=""></option>' + DATA.people.map(p => '<option' + (p === sel ? ' selected' : '') + '>' + esc(p) + '</option>').join('');
