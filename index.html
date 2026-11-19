@@ -299,7 +299,7 @@ function render() {
       const cls = ds === DATA.today ? ' today' : (isPast ? ' past' : '') + (fold ? ' fold' : '');
       const hol = (HOL[ds] || []).map(h => '<span class="hol">' + esc(h) + '</span>').join(' ');
       const ents = dayEntries(ds);
-      html += '<div class="day' + cls + '" id="d-' + ds + '"><div class="day-h"><b>' + DAYS[d] + '</b><span>' + short(ds) + '</span>' + (fold ? '<span>· ' + (ents.length ? ents.length + ' פריטים' : 'ריק') + ' ▾</span>' : hol) + '</div>';
+      html += '<div class="day' + cls + '" id="d-' + ds + '"><div class="day-h"><b>' + DAYS[d] + '</b><span>' + short(ds) + '</span>' + (fold ? '<span>· ' + (ents.length ? ents.length + ' פריטים' : 'ריק') + ' ▾</span>' : hol + (isPast ? '<span>▴</span>' : '')) + '</div>';
       if (!fold) html += ents.length ? ents.map(e => '<button class="item' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '" data-k="' + e.kind + '" data-id="' + esc(e.id) + '" data-date="' + ds + '">' + line(e) + '</button>').join('') : '<div class="empty">—</div>';
       html += '</div>';
     }
@@ -904,7 +904,7 @@ function toggleMic() {
 })();
 $('btnDate').onclick = () => { const d = $('datePick'); d.value = DATA.today; try { d.showPicker(); } catch (e) { d.style.cssText = 'display:block;position:static;opacity:1;pointer-events:auto;width:auto;height:auto'; d.focus(); } };
 $('datePick').onchange = e => { if (e.target.value) { showDay(e.target.value); } };
-$('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (!h) return; const day = h.parentElement; const ds = day.id.replace('d-', ''); if (day.classList.contains('fold')) { PAST_OPEN.add(ds); render(); } else showDay(ds); });
+$('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (!h) return; const day = h.parentElement; const ds = day.id.replace('d-', ''); if (day.classList.contains('fold')) { PAST_OPEN.add(ds); render(); } else if (day.classList.contains('past')) { PAST_OPEN.delete(ds); render(); } else showDay(ds); });
 // החלקה בין שבועות: שמאלה = השבוע הבא (כמו סדר הלשוניות), ימינה = הקודם
 (() => {
   const w = $('weeks'); let st = null;
