@@ -538,6 +538,18 @@ setInterval(refresh, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 $('btnMe').onclick = () => askWho(false);
 
+// ---------- שיתוף מוואטסאפ (או כל אפליקציה) ללו"ז ----------
+async function receiveShare() {
+  if (!('caches' in window)) return;
+  const c = await caches.open('share');
+  const t = await c.match('share-text'), f = await c.match('share-file');
+  const text = t ? (await t.text()).trim() : '';
+  await c.delete('share-text'); await c.delete('share-file');
+  $('txt').value = text;
+  if (f) { const bl = await f.blob(); submitPhoto(new File([bl], 'shared', { type: bl.type || 'image/jpeg' })); }
+  else if (text) submitText();
+}
+
 // ---------- הגדרות (נשמרות במכשיר הזה בלבד) ----------
 const MIC_SIZES = { 'קטן': 46, 'רגיל': 54, 'גדול': 64 };
 function micSize() { try { return +localStorage.getItem('micSize') || 54; } catch (e) { return 54; } }
@@ -833,6 +845,7 @@ if (STANDALONE && !K) {
       if (ME() && !dlg.open) {
         if (act === 'today') showDay(DATA.today);
         else if (act === 'voice') setTimeout(toggleMic, 300);
+        else if (act === 'share') receiveShare();
       }
     }
   } catch (e) {}
