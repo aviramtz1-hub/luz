@@ -175,6 +175,7 @@
   <header>
     <h1>הלו"ז שלנו</h1>
     <button class="btn small" id="btnMe" hidden></button>
+    <button class="btn small" id="btnUndo" aria-label="ביטול הפעולה האחרונה" title="ביטול הפעולה האחרונה" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
     <button class="btn small" id="btnSet" aria-label="הגדרות" title="הגדרות">⚙️</button>
     <button class="btn small" id="btnRec">קבועים</button>
     <button class="btn small" id="btnPrint">הדפסה</button>
@@ -498,13 +499,56 @@ function markBusy(actions) {
   return () => els.forEach(el => el.classList.remove('busy-edit', 'busy-del'));
 }
 
-async function save(actions) {
+// ביטול הפעולה האחרונה: מחשבים פעולות הפוכות לפני השמירה, ושומרים אותן במכשיר
+const UNDO_KEY = 'undoLast';
+function undoGet() { try { const u = JSON.parse(localStorage.getItem(UNDO_KEY) || 'null'); return u && Date.now() - (u.ts || 0) < 30 * 60000 ? u : null; } catch (e) { return null; } }
+function undoSet(v) { try { v ? localStorage.setItem(UNDO_KEY, JSON.stringify(v)) : localStorage.removeItem(UNDO_KEY); } catch (e) {} updateUndo(); }
+function updateUndo() { const u = undoGet(), b = $('btnUndo'); if (!b) return; b.hidden = !(u && u.inv && u.inv.length); b.title = u && u.label ? 'ביטול: ' + u.label : 'ביטול הפעולה האחרונה'; }
+function inverseOf(actions, before) {
+  const inv = [];
+  actions.forEach(a => {
+    if (a.type === 'delete_item') { const o = before.items.find(i => i.id === a.itemId); if (o) inv.push({ type: 'add', date: o.date, person: o.person, title: o.title, time: o.time }); }
+    else if (a.type === 'delete_recurring') { const o = before.recurring.find(r => r.id === a.recurringId); if (o) inv.push({ type: 'add_recurring', weekday: o.weekday, person: o.person, title: o.title, time: o.time }); }
+    else if (a.type === 'edit_item') { const o = before.items.find(i => i.id === a.itemId); if (o) inv.push({ type: 'edit_item', itemId: o.id, date: o.date, person: o.person, title: o.title, time: o.time }); }
+    else if (a.type === 'edit_recurring') { const o = before.recurring.find(r => r.id === a.recurringId); if (o) inv.push({ type: 'edit_recurring', recurringId: o.id, weekday: o.weekday, person: o.person, title: o.title, time: o.time }); }
+    else if (a.type === 'cancel') inv.push({ type: 'uncancel', recurringId: a.recurringId, date: a.date });
+    else if (a.type === 'uncancel') inv.push({ type: 'cancel', recurringId: a.recurringId, date: a.date });
+  });
+  return inv;
+}
+function inverseOfAdds(actions, before, after) {
+  const inv = [];
+  const newItems = after.items.filter(i => i.type === 'oneoff' && !before.items.some(o => o.id === i.id));
+  const newRec = after.recurring.filter(r => !before.recurring.some(o => o.id === r.id));
+  const nOne = actions.filter(a => a.type === 'add').length, nRec = actions.filter(a => a.type === 'add_recurring').length;
+  if (nOne && newItems.length >= nOne) newItems.slice(-nOne).forEach(i => inv.push({ type: 'delete_item', itemId: i.id }));
+  if (nRec && newRec.length >= nRec) newRec.slice(-nRec).forEach(r => inv.push({ type: 'delete_recurring', recurringId: r.id }));
+  return inv;
+}
+
+async function save(actions, isUndo) {
   if (!actions.length) return false;
   showErr('');
+  const before = DATA ? JSON.parse(JSON.stringify(DATA)) : null;
   const unmark = markBusy(actions);
-  try { DATA = await call('applyActions', actions, { me: ME(), lines: actions.map(plain).filter(String), dates: affectedDates(actions) }); unmark(); render(); return true; }
+  try {
+    DATA = await call('applyActions', actions, { me: ME(), lines: actions.map(plain).filter(String), dates: affectedDates(actions) });
+    unmark(); render();
+    if (isUndo) undoSet(null);
+    else if (before) { try { const inv = inverseOf(actions, before).concat(inverseOfAdds(actions, before, DATA)); undoSet(inv.length ? { ts: Date.now(), inv, label: actions.map(plain).filter(String).join(' · ').slice(0, 60) } : null); } catch (e) { undoSet(null); } }
+    return true;
+  }
   catch (e) { unmark(); showErr(e.message || String(e)); return false; }
 }
+$('btnUndo').onclick = async () => {
+  const u = undoGet(); if (!u || !u.inv || !u.inv.length) return;
+  // בודקים שהפריטים עדיין קיימים לפני שמבטלים
+  const ok = u.inv.every(a => (a.itemId ? DATA.items.some(i => i.id === a.itemId) : true) && (a.type === 'edit_recurring' || a.type === 'delete_recurring' ? DATA.recurring.some(r => r.id === a.recurringId) : true));
+  if (!ok) { undoSet(null); showErr('אי אפשר לבטל: משהו השתנה בינתיים.'); return; }
+  const b = $('btnUndo'); b.disabled = true;
+  await save(u.inv, true);
+  b.disabled = false;
+};
 
 // ---------- dialogs ----------
 const dlg = $('dlg');
@@ -887,7 +931,8 @@ if (STANDALONE && !K) {
   document.getElementById('kGo').onclick = () => { const v = document.getElementById('kIn').value.trim(); if (v) { try { localStorage.setItem('familyCode', v); } catch (e) {} location.href = location.pathname + '?k=' + encodeURIComponent(v); } };
 } else call('getData', ME()).then(d => {
   DATA = d; render(); updateMe();
-  if (!ME()) askWho(true); else { maybeShowNew(); setTimeout(maybeAskPush, 1500); }
+  updateUndo();
+if (!ME()) askWho(true); else { maybeShowNew(); setTimeout(maybeAskPush, 1500); }
   // קיצורי דרך מהאייקון (לחיצה ארוכה): ?a=voice / ?a=today
   try {
     const act = new URLSearchParams(location.search).get('a');
