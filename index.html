@@ -62,6 +62,10 @@
   .day.today { background: var(--today); border-color: var(--accent); }
   .day.past { opacity: .55; }
   html { overflow-x: hidden; }
+  .pick { display: flex; gap: 12px; margin: 6px 0 4px; }
+  .tile { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--accent); font: inherit; font-size: 15px; cursor: pointer; }
+  .tile:first-child { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tile span { color: inherit; font-weight: 600; }
   #wclip { overflow: hidden; overflow: clip; margin: 0 -16px; padding: 0 16px; position: relative; }
   .wghost { position: absolute; top: 0; left: 16px; right: 16px; pointer-events: none; will-change: transform; }
   #weeks { touch-action: pan-y; will-change: transform; }
@@ -976,7 +980,7 @@ $('btnGo').onclick = () => { if ($('btnGo').dataset.busy) { if (CANCEL) CANCEL()
 $('txt').setAttribute('enterkeyhint', 'send');
 $('txt').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!$('btnGo').dataset.busy) submitText(); } });
 $('btnPhoto').onclick = () => {
-  openDlg('<h3>צילום הודעה</h3><div class="dlg-actions"><button class="btn primary" id="pCam">📷 לצלם עכשיו</button><button class="btn" id="pGal">🖼️ לבחור תמונה מהגלריה</button><button class="btn" id="pCancel">ביטול</button></div>');
+  openDlg('<h3>צילום הודעה</h3><div class="pick"><button class="tile" id="pCam"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg><span>מצלמה</span></button><button class="tile" id="pGal"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 9"/></svg><span>גלריה</span></button></div><div class="row"><button class="btn" id="pCancel">ביטול</button></div>');
   $('pCam').onclick = () => { closeDlg(); $('fileCam').click(); };
   $('pGal').onclick = () => { closeDlg(); $('file').click(); };
   $('pCancel').onclick = closeDlg;
