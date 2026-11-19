@@ -19,3 +19,20 @@ self.addEventListener('fetch', e => {
     })());
   }
 });
+
+// התראה קופצת כשבן/בת הזוג עדכנו משהו. ההתראה מגיעה בלי תוכן, כדי שפרטי הלו"ז לא יעברו דרך שרתים חיצוניים.
+self.addEventListener('push', e => {
+  e.waitUntil(self.registration.showNotification('הלו"ז שלנו', {
+    body: 'יש עדכון חדש בלו"ז. לחצו כדי לראות.',
+    icon: 'icon-192.png', badge: 'icon-192.png', tag: 'luz-update', renotify: true,
+    requireInteraction: true, vibrate: [200, 100, 200], dir: 'rtl', lang: 'he'
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) { if ('focus' in c) { c.postMessage({ type: 'refresh' }); return c.focus(); } }
+    return self.clients.openWindow(self.registration.scope);
+  })());
+});
