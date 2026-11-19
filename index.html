@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<base target="_top">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1f6feb">
+<script src="config.js"></script>
+<script>if('serviceWorker' in navigator) addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f2; --card: #ffffff; --ink: #1d1f23; --muted: #6b6f76; --line: #e3e1dc;
+    --accent: #1f6feb; --accent-ink: #ffffff; --star: #b45309; --star-bg: #fff4e0;
+    --today: #e8f0fe; --hol: #6d28d9; --hol-bg: #f1ebff; --warn: #b91c1c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: Heebo, Arial, sans-serif; font-size: 16px; }
+  button, input, select, textarea { font: inherit; }
+  .app { max-width: 1400px; margin: 0 auto; padding: 12px 16px 60px; }
+  header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  header h1 { font-size: 22px; margin: 0; flex: 1; }
+  .btn { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.small { padding: 5px 10px; font-size: 14px; }
+  .btn.danger { color: var(--warn); }
+
+  .input-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 16px; }
+  .input-card textarea { width: 100%; min-height: 56px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; resize: vertical; }
+  .input-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+  .hint { color: var(--muted); font-size: 13px; flex: 1; min-width: 160px; }
+  .confirm { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .confirm label { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; }
+  .confirm .dup { color: var(--warn); font-size: 13px; display: block; }
+  .note { color: var(--muted); font-size: 14px; margin: 6px 0; }
+  .dh { margin: 12px 0 4px; font-size: 16px; }
+  .dh:first-child { margin-top: 0; }
+  .crow { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .crow input[type=checkbox] { margin-top: 5px; width: 18px; height: 18px; flex: none; }
+  .cbody { flex: 1; min-width: 0; }
+  .cbody .dup { color: var(--warn); font-size: 13px; display: block; }
+  .erow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .erow .full { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+  .erow input, .erow select { border: 1px solid var(--line); border-radius: 8px; padding: 7px; min-width: 0; color: var(--ink); background: #fff; }
+  .ms { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  dialog { max-height: 90vh; overflow: auto; }
+  .answer { background: var(--today); border-radius: 10px; padding: 10px 12px; line-height: 1.6; }
+  .day-h { cursor: pointer; }
+  .err { color: var(--warn); font-size: 14px; margin-top: 8px; white-space: pre-wrap; }
+
+  .week { margin-bottom: 22px; }
+  .week h2 { font-size: 18px; margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
+  .week h2 small { color: var(--muted); font-weight: 400; font-size: 14px; }
+  .days { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  @media (min-width: 900px) { .days { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+  .day { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; min-height: 64px; }
+  .day.today { background: var(--today); border-color: var(--accent); }
+  .day.past { opacity: .55; }
+  .day-h { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+  .day-h b { font-size: 15px; }
+  .day-h span { color: var(--muted); font-size: 13px; }
+  .hol { background: var(--hol-bg); color: var(--hol); border-radius: 6px; padding: 0 6px; font-size: 12px; }
+  .item { display: block; width: 100%; text-align: right; background: none; border: 0; padding: 3px 0; cursor: pointer; line-height: 1.35; color: inherit; }
+  .item:hover { background: #f1f1ee; }
+  .item .who { font-weight: 700; }
+  .item .t { color: var(--muted); font-size: 14px; white-space: nowrap; }
+  .item.one { background: var(--star-bg); border-radius: 6px; padding: 3px 5px; margin: 2px 0; }
+  .item.one::before { content: "★ "; color: var(--star); }
+  .item.off { text-decoration: line-through; color: var(--muted); }
+  .empty { color: var(--muted); font-size: 13px; }
+
+  dialog { border: 1px solid var(--line); border-radius: 14px; padding: 16px; width: min(440px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  dialog h3 { margin: 0 0 10px; font-size: 18px; }
+  .dlg-actions { display: flex; flex-direction: column; gap: 8px; }
+  .form { display: grid; gap: 8px; }
+  .form label { display: grid; gap: 3px; font-size: 14px; color: var(--muted); }
+  .form input, .form select { border: 1px solid var(--line); border-radius: 8px; padding: 8px; color: var(--ink); }
+  .row { display: flex; gap: 8px; justify-content: flex-start; margin-top: 12px; }
+  .rec-list { max-height: 60vh; overflow: auto; }
+  .rec-list h4 { margin: 10px 0 4px; font-size: 15px; }
+  .rec-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+
+  .tabs { position: sticky; top: 0; z-index: 5; background: var(--bg); display: flex; gap: 6px; padding: 8px 0; margin-bottom: 8px; overflow-x: auto; }
+  .tab { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 6px 14px; white-space: nowrap; cursor: pointer; font-size: 15px; }
+  .tab.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
+  .tab small { opacity: .75; font-size: 12px; margin-inline-start: 4px; }
+  @media (max-width: 560px) { .tab { flex: 1 1 0; padding: 6px 2px; font-size: 13px; display: flex; flex-direction: column; align-items: center; line-height: 1.2; } .tab small { margin: 0; font-size: 11px; } }
+  .mic { position: fixed; bottom: 20px; left: 20px; width: 64px; height: 64px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer; z-index: 20; display: grid; place-items: center; }
+  .mic svg { width: 28px; height: 28px; }
+  .mic.rec { background: #dc2626; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(220,38,38,.5); } 100% { box-shadow: 0 0 0 18px rgba(220,38,38,0); } }
+  .listening { position: fixed; bottom: 96px; left: 12px; right: 12px; max-width: 460px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; z-index: 30; box-shadow: 0 8px 28px rgba(0,0,0,.28); }
+  .lis-h { display: flex; align-items: center; gap: 8px; }
+  .lis-h b { flex: 1; font-size: 16px; }
+  .lis-h .x { border: 0; background: #f1f1ee; border-radius: 50%; width: 34px; height: 34px; font-size: 18px; cursor: pointer; }
+  .lis-dot { width: 12px; height: 12px; border-radius: 50%; background: #9ca3af; }
+  .lis-dot.live { background: #dc2626; animation: pulse 1.2s infinite; }
+  .lis-t { min-height: 3.2em; margin: 8px 0; font-size: 19px; line-height: 1.5; }
+  .lis-t .interim { color: var(--muted); }
+  .lis-s { color: var(--muted); font-size: 11px; direction: ltr; text-align: left; margin-bottom: 6px; word-break: break-all; }
+  .lis-r { display: flex; gap: 8px; }
+  #print { display: none; }
+  @media print {
+    @page { size: A4 portrait; margin: 9mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body { background: #fff; }
+    .app, dialog, .mic, .listening { display: none !important; }
+    #print { display: block; }
+
+    /* ---- theme variables (default = excel) ---- */
+    #print { --b1: #8fd3f4; --b2: #fbd3b0; --b3: #c4e5b5; --b4: #fbe8a0; --ink: #111; --cell: #fff; --we: #f4f9fd;
+             --line: 1.3px solid #333; --rad: 3px; --gap: 6px; --dayink: #111; --acc: #111; --hol-bg: #fff; }
+    #print.th-pastel { --b1: #bcdcf5; --b2: #f7cdd8; --b3: #cfe8d2; --b4: #fde7a8; --line: 0 solid transparent; --rad: 10px; --gap: 5px; --dayink: #333; --acc: #b3402a; --we: #fff; --cell: #fff; }
+    #print.th-clean  { --b1: #2b6cb0; --b2: #2b6cb0; --b3: #2b6cb0; --b4: #2b6cb0; --ink: #1a1a1a; --cell: #fff; --we: #f3f4f6; --line: 0 solid transparent; --rad: 0; --gap: 0px; --dayink: #1f4e8c; --acc: #1f4e8c; }
+    #print.th-warm   { --b1: #e9b8a0; --b2: #f0cfa0; --b3: #cfd9a8; --b4: #b9d3cf; --ink: #3a2a1d; --cell: #fffaf0; --we: #fbefd9; --line: 1px solid #e3d3b5; --rad: 9px; --gap: 5px; --dayink: #8a4b2a; --acc: #b5532a; }
+
+    .pp { page-break-after: always; break-after: page; font-size: 12.5pt; color: var(--ink); }
+    .pp:last-child { page-break-after: auto; break-after: auto; }
+    .pp h1, .pp h2 { margin: 0 0 4px; padding: 5px 12px; font-weight: 700; border-radius: var(--rad); background: var(--bar); color: #111; border: var(--line); }
+    #print.th-clean .pp h1, #print.th-clean .pp h2 { background: none; color: var(--dayink); border-radius: 0; border: 0; border-bottom: 3px solid var(--dayink); padding-inline: 0; }
+    .pp h1 { font-size: 17pt; } .pp h2 { font-size: 13pt; }
+    .pp.w1 { --bar: var(--b1); } .pp.w2 { --bar: var(--b2); } .pp.w3 { --bar: var(--b3); } .pp.w4 { --bar: var(--b4); }
+    .pp .two > div:nth-child(1) { --bar: var(--b3); } .pp .two > div:nth-child(2) { --bar: var(--b4); }
+
+    .pp table { width: 100%; border-collapse: separate; border-spacing: 0 var(--gap); }
+    .pp td { vertical-align: top; padding: 6px 10px; background: var(--cell); border-top: var(--line); border-bottom: var(--line); }
+    .pp td:first-child { border-inline-start: var(--line); border-start-start-radius: var(--rad); border-end-start-radius: var(--rad); }
+    .pp td:last-child { border-inline-end: var(--line); border-start-end-radius: var(--rad); border-end-end-radius: var(--rad); }
+    .pp tr.we td { background: var(--we); }
+    .pp td.d { width: 21%; white-space: nowrap; color: var(--dayink); font-weight: 700; }
+    .pp td.d b { display: block; font-size: 1.05em; }
+    .pp td.d .dt { font-weight: 500; }
+    .pp .hol { border: 1px solid var(--dayink); background: var(--hol-bg); color: var(--dayink); font-size: 9pt; white-space: nowrap; display: inline-block; margin-top: 2px; border-radius: 6px; padding: 0 5px; font-weight: 500; }
+    .pp .li { padding: 1px 0; }
+    .pp .li::before { content: "– "; color: #666; }
+    .pp .li.one { font-weight: 700; }
+    .pp .li.one::before { content: "★ "; color: var(--acc); }
+    .pp .li.off { text-decoration: line-through; color: #777; }
+
+    /* theme specifics */
+    #print.th-pastel tr.d0 td { background: #fff0e6; } #print.th-pastel tr.d1 td { background: #eaf6ee; } #print.th-pastel tr.d2 td { background: #eaf2fb; }
+    #print.th-pastel tr.d3 td { background: #f5eefa; } #print.th-pastel tr.d4 td { background: #fff8e1; } #print.th-pastel tr.d5 td { background: #fde8ef; } #print.th-pastel tr.d6 td { background: #eceff1; }
+    #print.th-clean td { border-bottom: 0.8px solid #cfcfcf; border-top: 0; }
+    #print.th-clean tr:first-child td { border-top: 0.8px solid #cfcfcf; }
+    #print.th-clean td:first-child, #print.th-clean td:last-child { border-inline: 0; }
+
+    .pp.big td { height: 35mm; font-size: 13.5pt; }
+    .pp .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+    .pp .two td { font-size: 10.5pt; height: 30mm; padding: 4px 7px; }
+    .pp .two h2 { font-size: 13pt; }
+    .pp .later { margin-top: 5mm; font-size: 10.5pt; }
+  }
+  [hidden] { display: none !important; }
+  .new { background:#d93025; color:#fff; border-radius:6px; padding:0 5px; font-size:11px; font-weight:700; }
+  #dlg[data-locked] { border:3px solid #d93025; }
+  .chg { padding:8px 0; border-bottom:1px solid #ddd; }
+  .chg small { color:#666; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>הלו"ז שלנו</h1>
+    <button class="btn small" id="btnMe"></button>
+    <button class="btn small" id="btnRec">קבועים</button>
+    <button class="btn small" id="btnPrint">הדפסה</button>
+  </header>
+
+  <section class="input-card">
+    <textarea id="txt" placeholder='מה להוסיף? למשל: "ביום חמישי אין טניס לאביב" או "גלי מבחן במתמטיקה ב-24.11"'></textarea>
+    <div class="input-row">
+      <button class="btn primary" id="btnGo">הוספה</button>
+      <button class="btn" id="btnPhoto">צילום הודעה</button>
+      <button class="btn" id="btnManual">ידנית</button>
+      <button class="btn" id="btnDate" title="מה יש ביום מסוים">📅 תאריך</button>
+      <input type="date" id="datePick" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px" tabindex="-1">
+      <input type="file" id="file" accept="image/*" hidden>
+      <span class="hint">אפשר לדבר: לוחצים על המיקרופון שבמקלדת ואומרים.</span>
+    </div>
+    <div id="err" class="err" hidden></div>
+  </section>
+
+  <nav class="tabs" id="tabs"></nav>
+  <main id="weeks"><p class="empty">טוען…</p></main>
+</div>
+
+<button class="mic" id="mic" aria-label="הקלטה"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg></button>
+<div class="listening" id="listening" hidden></div>
+
+<div id="print"></div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+const K = (function(){try{var u=new URLSearchParams(location.search).get('k');if(u){localStorage.setItem('familyCode',u);return u;}return localStorage.getItem('familyCode')||'';}catch(e){return '';}})();
+const HOL = {"2026-09-05":["סליחות"],"2026-09-11":["ערב ראש השנה"],"2026-09-12":["ראש השנה 5787"],"2026-09-13":["ראש השנה ב׳"],"2026-09-20":["ערב יום כפור"],"2026-09-21":["יום כפור"],"2026-09-25":["ערב סוכות"],"2026-09-26":["סוכות א׳"],"2026-09-27":["סוכות ב׳ (חוה״מ)"],"2026-09-28":["סוכות ג׳ (חוה״מ)"],"2026-09-29":["סוכות ד׳ (חוה״מ)"],"2026-09-30":["סוכות ה׳ (חוה״מ)"],"2026-10-01":["סוכות ו׳ (חוה״מ)"],"2026-10-02":["סוכות ז׳ (הושענא רבה)"],"2026-10-03":["שמיני עצרת"],"2026-10-22":["יום הזכרון ליצחק רבין"],"2026-12-04":["חנוכה: א׳ נר"],"2026-12-05":["חנוכה: ב׳ נרות"],"2026-12-06":["חנוכה: ג׳ נרות"],"2026-12-07":["חנוכה: ד׳ נרות"],"2026-12-08":["חנוכה: ה׳ נרות"],"2026-12-09":["חנוכה: ו׳ נרות"],"2026-12-10":["חנוכה: ז׳ נרות"],"2026-12-11":["חנוכה: ח׳ נרות"],"2026-12-12":["חנוכה: יום ח׳"],"2027-01-23":["ט״ו בשבט"],"2027-02-21":["פורים קטן"],"2027-02-22":["שושן פורים קטן"],"2027-03-22":["ערב פורים"],"2027-03-23":["פורים"],"2027-03-24":["שושן פורים"],"2027-04-21":["ערב פסח"],"2027-04-22":["פסח א׳"],"2027-04-23":["פסח ב׳ (חוה״מ)"],"2027-04-24":["פסח ג׳ (חוה״מ)"],"2027-04-25":["פסח ד׳ (חוה״מ)"],"2027-04-26":["פסח ה׳ (חוה״מ)"],"2027-04-27":["פסח ו׳ (חוה״מ)"],"2027-04-28":["פסח ז׳"],"2027-05-04":["יום השואה"],"2027-05-11":["יום הזכרון"],"2027-05-12":["יום העצמאות"],"2027-05-25":["ל״ג בעומר"],"2027-06-04":["יום ירושלים"],"2027-06-10":["ערב שבועות"],"2027-06-11":["שבועות"],"2027-08-11":["ערב תשעה באב"],"2027-08-12":["תשעה באב"],"2027-09-03":["ראש השנה למעשר בהמה"],"2027-09-25":["סליחות"],"2027-10-01":["ערב ראש השנה"],"2027-10-02":["ראש השנה 5788"],"2027-10-03":["ראש השנה ב׳"],"2027-10-10":["ערב יום כפור"],"2027-10-11":["יום כפור"],"2027-10-15":["ערב סוכות"],"2027-10-16":["סוכות א׳"],"2027-10-17":["סוכות ב׳ (חוה״מ)"],"2027-10-18":["סוכות ג׳ (חוה״מ)"],"2027-10-19":["סוכות ד׳ (חוה״מ)"],"2027-10-20":["סוכות ה׳ (חוה״מ)"],"2027-10-21":["סוכות ו׳ (חוה״מ)"],"2027-10-22":["סוכות ז׳ (הושענא רבה)"],"2027-10-23":["שמיני עצרת"],"2027-11-11":["יום הזכרון ליצחק רבין"],"2027-12-24":["חנוכה: א׳ נר"],"2027-12-25":["חנוכה: ב׳ נרות"],"2027-12-26":["חנוכה: ג׳ נרות"],"2027-12-27":["חנוכה: ד׳ נרות"],"2027-12-28":["חנוכה: ה׳ נרות"],"2027-12-29":["חנוכה: ו׳ נרות"],"2027-12-30":["חנוכה: ז׳ נרות"],"2027-12-31":["חנוכה: ח׳ נרות"],"2028-01-01":["חנוכה: יום ח׳"],"2028-02-12":["ט״ו בשבט"],"2028-03-11":["ערב פורים"],"2028-03-12":["פורים"],"2028-03-13":["שושן פורים"],"2028-04-10":["ערב פסח"],"2028-04-11":["פסח א׳"],"2028-04-12":["פסח ב׳ (חוה״מ)"],"2028-04-13":["פסח ג׳ (חוה״מ)"],"2028-04-14":["פסח ד׳ (חוה״מ)"],"2028-04-15":["פסח ה׳ (חוה״מ)"],"2028-04-16":["פסח ו׳ (חוה״מ)"],"2028-04-17":["פסח ז׳"],"2028-04-24":["יום השואה"],"2028-05-01":["יום הזכרון"],"2028-05-02":["יום העצמאות"],"2028-05-14":["ל״ג בעומר"],"2028-05-24":["יום ירושלים"],"2028-05-30":["ערב שבועות"],"2028-05-31":["שבועות"],"2028-07-31":["ערב תשעה באב"],"2028-08-01":["תשעה באב"],"2028-08-23":["ראש השנה למעשר בהמה"],"2028-09-16":["סליחות"],"2028-09-20":["ערב ראש השנה"],"2028-09-21":["ראש השנה 5789"],"2028-09-22":["ראש השנה ב׳"],"2028-09-29":["ערב יום כפור"],"2028-09-30":["יום כפור"],"2028-10-04":["ערב סוכות"],"2028-10-05":["סוכות א׳"],"2028-10-06":["סוכות ב׳ (חוה״מ)"],"2028-10-07":["סוכות ג׳ (חוה״מ)"],"2028-10-08":["סוכות ד׳ (חוה״מ)"],"2028-10-09":["סוכות ה׳ (חוה״מ)"],"2028-10-10":["סוכות ו׳ (חוה״מ)"],"2028-10-11":["סוכות ז׳ (הושענא רבה)"],"2028-10-12":["שמיני עצרת"],"2028-11-01":["יום הזכרון ליצחק רבין"],"2028-12-12":["חנוכה: א׳ נר"],"2028-12-13":["חנוכה: ב׳ נרות"],"2028-12-14":["חנוכה: ג׳ נרות"],"2028-12-15":["חנוכה: ד׳ נרות"],"2028-12-16":["חנוכה: ה׳ נרות"],"2028-12-17":["חנוכה: ו׳ נרות"],"2028-12-18":["חנוכה: ז׳ נרות"],"2028-12-19":["חנוכה: ח׳ נרות"],"2028-12-20":["חנוכה: יום ח׳"],"2029-01-31":["ט״ו בשבט"],"2029-02-28":["ערב פורים"],"2029-03-01":["פורים"],"2029-03-02":["שושן פורים"],"2029-03-30":["ערב פסח"],"2029-03-31":["פסח א׳"],"2029-04-01":["פסח ב׳ (חוה״מ)"],"2029-04-02":["פסח ג׳ (חוה״מ)"],"2029-04-03":["פסח ד׳ (חוה״מ)"],"2029-04-04":["פסח ה׳ (חוה״מ)"],"2029-04-05":["פסח ו׳ (חוה״מ)"],"2029-04-06":["פסח ז׳"],"2029-04-12":["יום השואה"],"2029-04-18":["יום הזכרון"],"2029-04-19":["יום העצמאות"],"2029-05-03":["ל״ג בעומר"],"2029-05-13":["יום ירושלים"],"2029-05-19":["ערב שבועות"],"2029-05-20":["שבועות"],"2029-07-21":["ערב תשעה באב"],"2029-07-22":["(תשעה באב (נדחה"],"2029-08-12":["ראש השנה למעשר בהמה"],"2029-09-01":["סליחות"],"2029-09-09":["ערב ראש השנה"],"2029-09-10":["ראש השנה 5790"],"2029-09-11":["ראש השנה ב׳"],"2029-09-18":["ערב יום כפור"],"2029-09-19":["יום כפור"],"2029-09-23":["ערב סוכות"],"2029-09-24":["סוכות א׳"],"2029-09-25":["סוכות ב׳ (חוה״מ)"],"2029-09-26":["סוכות ג׳ (חוה״מ)"],"2029-09-27":["סוכות ד׳ (חוה״מ)"],"2029-09-28":["סוכות ה׳ (חוה״מ)"],"2029-09-29":["סוכות ו׳ (חוה״מ)"],"2029-09-30":["סוכות ז׳ (הושענא רבה)"],"2029-10-01":["שמיני עצרת"],"2029-10-21":["יום הזכרון ליצחק רבין"],"2029-12-01":["חנוכה: א׳ נר"],"2029-12-02":["חנוכה: ב׳ נרות"],"2029-12-03":["חנוכה: ג׳ נרות"],"2029-12-04":["חנוכה: ד׳ נרות"],"2029-12-05":["חנוכה: ה׳ נרות"],"2029-12-06":["חנוכה: ו׳ נרות"],"2029-12-07":["חנוכה: ז׳ נרות"],"2029-12-08":["חנוכה: ח׳ נרות"],"2029-12-09":["חנוכה: יום ח׳"],"2030-01-19":["ט״ו בשבט"],"2030-02-17":["פורים קטן"],"2030-02-18":["שושן פורים קטן"],"2030-03-18":["ערב פורים"],"2030-03-19":["פורים"],"2030-03-20":["שושן פורים"],"2030-04-17":["ערב פסח"],"2030-04-18":["פסח א׳"],"2030-04-19":["פסח ב׳ (חוה״מ)"],"2030-04-20":["פסח ג׳ (חוה״מ)"],"2030-04-21":["פסח ד׳ (חוה״מ)"],"2030-04-22":["פסח ה׳ (חוה״מ)"],"2030-04-23":["פסח ו׳ (חוה״מ)"],"2030-04-24":["פסח ז׳"],"2030-04-30":["יום השואה"],"2030-05-07":["יום הזכרון"],"2030-05-08":["יום העצמאות"],"2030-05-21":["ל״ג בעומר"],"2030-05-31":["יום ירושלים"],"2030-06-06":["ערב שבועות"],"2030-06-07":["שבועות"],"2030-08-07":["ערב תשעה באב"],"2030-08-08":["תשעה באב"],"2030-08-30":["ראש השנה למעשר בהמה"]};
+const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const DAYS_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+let DATA = null;
+function ME() { try { return localStorage.getItem('me') || ''; } catch (e) { return ''; } }
+function setMe(v) { try { localStorage.setItem('me', v); } catch (e) {} }
+let PENDING = null;
+
+// ---------- server ----------
+const STANDALONE = !(window.google && google.script && google.script.run);
+function call1(fn, args) {
+  if (!STANDALONE) return new Promise((res, rej) => {
+    google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](K, ...args);
+  });
+  // אתר עצמאי (GitHub Pages): קוראים ל־Apps Script כ־API. text/plain כדי להימנע מבקשת preflight.
+  return fetch(window.LUZ_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: [K, ...args] }) })
+    .then(r => r.json())
+    .then(j => { if (!j.ok) throw new Error(j.error || 'שגיאה'); return j.data; });
+}
+// ניסיון חוזר אחד כשיש תקלת רשת רגעית (HTTP 0)
+async function call(fn, ...args) {
+  try { return await call1(fn, args); }
+  catch (e) {
+    if (/HTTP 0|NetworkError|Failed to fetch/i.test(String((e && e.message) || e))) { await new Promise(r => setTimeout(r, 1200)); return call1(fn, args); }
+    throw e;
+  }
+}
+
+// ---------- dates ----------
+function addDays(ds, n) { const [y,m,d] = ds.split('-').map(Number); return new Date(Date.UTC(y, m-1, d+n)).toISOString().slice(0,10); }
+function dow(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(Date.UTC(y, m-1, d)).getUTCDay(); }
+function rangeLabel(ws) {
+  const we = addDays(ws, 6), [, m1, d1] = ws.split('-').map(Number), [, m2, d2] = we.split('-').map(Number);
+  return m1 === m2 ? d1 + '-' + d2 + '.' + m1 : d1 + '.' + m1 + '-' + d2 + '.' + m2;
+}
+function short(ds) { const [, m, d] = ds.split('-').map(Number); return d + '.' + m; }
+function windowStart(today) {
+  // השבוע הקרוב מתחיל ביום ראשון. בשבת כבר מציגים את השבוע הבא.
+  const w = dow(today);
+  return w === 6 ? addDays(today, 1) : addDays(today, -w);
+}
+function timeKey(t) { const m = String(t || '').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : -1; }
+
+// ---------- model ----------
+function dayEntries(ds) {
+  const w = dow(ds);
+  const cancels = new Set(DATA.items.filter(i => i.type === 'cancel' && i.date === ds).map(i => i.recurringId));
+  const rec = DATA.recurring.filter(r => r.weekday === w).map(r => ({ kind: 'rec', id: r.id, person: r.person, title: r.title, time: r.time, off: cancels.has(r.id), date: ds, by: r.by, ts: r.ts }));
+  const one = DATA.items.filter(i => i.type === 'oneoff' && i.date === ds).map(i => ({ kind: 'one', id: i.id, person: i.person, title: i.title, time: i.time, date: ds, by: i.by, ts: i.ts }));
+  return rec.concat(one).sort((a, b) => timeKey(a.time) - timeKey(b.time));
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function isNew(e) { return !!(e.by && e.by !== ME() && e.ts > (DATA.seen || 0)); }
+function line(e) {
+  return (isNew(e) ? '<span class="new">חדש</span> ' : '') + (e.person ? '<span class="who">' + esc(e.person) + '</span> ' : '') + esc(e.title) + (e.time ? ' <span class="t">' + esc(e.time) + '</span>' : '');
+}
+
+// ---------- agenda (sent to the model so it can answer questions) ----------
+function agendaText(days) {
+  const out = [];
+  for (let i = 0; i < days; i++) {
+    const ds = addDays(DATA.today, i);
+    const hol = (HOL[ds] || []).join(', ');
+    const ents = dayEntries(ds).map(e => (e.person ? e.person + ' ' : '') + e.title + (e.time ? ' ' + e.time : '') + (e.off ? ' [לא מתקיים]' : '') + (e.kind === 'one' ? ' (חד־פעמי)' : '')).join('; ');
+    out.push(ds + ' יום ' + DAYS[dow(ds)] + (hol ? ' [' + hol + ']' : '') + ': ' + (ents || 'אין'));
+  }
+  return out.join('\n');
+}
+
+// ---------- render ----------
+const WEEK_NAMES = ['השבוע הקרוב', 'שבוע הבא', 'עוד שבועיים', 'עוד שלושה שבועות'];
+const TAB_NAMES = ['השבוע', 'שבוע הבא', 'עוד שבועיים', 'עוד 3 שבועות'];
+let WEEK = 0;
+function render() {
+  const start = windowStart(DATA.today);
+  $('tabs').innerHTML = TAB_NAMES.map((n, i) => '<button class="tab' + (i === WEEK ? ' on' : '') + '" data-w="' + i + '">' + n + '<small><bdi dir="ltr">' + rangeLabel(addDays(start, i * 7)) + '</bdi></small></button>').join('');
+  let html = '';
+  for (let w = WEEK; w <= WEEK; w++) {
+    const ws = addDays(start, w * 7);
+    html += '<section class="week"><h2>' + WEEK_NAMES[w] + ' <small><bdi dir="ltr">' + rangeLabel(ws) + '</bdi></small></h2><div class="days">';
+    for (let d = 0; d < 7; d++) {
+      const ds = addDays(ws, d);
+      const cls = ds === DATA.today ? ' today' : (ds < DATA.today ? ' past' : '');
+      const hol = (HOL[ds] || []).map(h => '<span class="hol">' + esc(h) + '</span>').join(' ');
+      const ents = dayEntries(ds);
+      html += '<div class="day' + cls + '" id="d-' + ds + '"><div class="day-h"><b>' + DAYS[d] + '</b><span>' + short(ds) + '</span>' + hol + '</div>';
+      html += ents.length ? ents.map(e => '<button class="item' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '" data-k="' + e.kind + '" data-id="' + esc(e.id) + '" data-date="' + ds + '">' + line(e) + '</button>').join('') : '<div class="empty">—</div>';
+      html += '</div>';
+    }
+    html += '</div></section>';
+  }
+  document.getElementById('weeks').innerHTML = html;
+}
+
+// ---------- input ----------
+const $ = id => document.getElementById(id);
+function showErr(msg) { const e = $('err'); e.hidden = !msg; e.textContent = msg || ''; }
+let RUN = 0, CANCEL = null;
+function busy(on, label) {
+  ['btnPhoto','btnManual'].forEach(id => $(id).disabled = on);
+  $('btnGo').textContent = on ? (label || 'רגע…') + ' · ביטול' : 'הוספה';
+  $('btnGo').dataset.busy = on ? '1' : '';
+}
+// מריץ בקשה עם ביטול ידני ו־timeout. תשובה שמגיעה אחרי ביטול מתעלמת.
+function runCancelable(promise, ms) {
+  const my = ++RUN;
+  return new Promise((res, rej) => {
+    const t = setTimeout(() => { if (my === RUN) { RUN++; rej(new Error('זה לוקח יותר מדי זמן. אפשר לנסות שוב.')); } }, ms || 60000);
+    CANCEL = () => { clearTimeout(t); if (my === RUN) { RUN++; rej(new Error('__cancel__')); } };
+    promise.then(v => { clearTimeout(t); if (my === RUN) res(v); }, e => { clearTimeout(t); if (my === RUN) rej(e); });
+  });
+}
+
+async function submitText() {
+  const text = $('txt').value.trim();
+  if (!text) return;
+  showErr(''); busy(true, 'מבין…');
+  try { showConfirm(await runCancelable(call('parseInput', text, '', '', agendaText(looksLikeQuestion(text) ? 60 : 21)))); }
+  catch (e) { if (e.message !== '__cancel__') showErr(e.message || String(e)); }
+  finally { busy(false); }
+}
+
+async function submitPhoto(file) {
+  showErr(''); busy(true, 'קורא את התמונה…');
+  try {
+    const { data, mime } = await shrinkImage(file);
+    showConfirm(await runCancelable(call('parseInput', $('txt').value.trim(), data, mime, agendaText(21)), 90000));
+  } catch (e) { if (e.message !== '__cancel__') showErr(e.message || String(e)); }
+  finally { busy(false); $('file').value = ''; }
+}
+
+function shrinkImage(file) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1600, s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res({ data: c.toDataURL('image/jpeg', 0.85).split(',')[1], mime: 'image/jpeg' });
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => rej(new Error('לא הצלחתי לפתוח את התמונה'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function looksLikeQuestion(t) { return /[?？]/.test(t) || /(^|\s)(מה יש|מתי|האם|איפה|מי|כמה|איזה|איזו|יש לנו|יש משהו)(\s|$)/.test(t); }
+function norm(s) { return String(s || '').replace(/["'״׳\s\-–,.]/g, ''); }
+function describe(a) {
+  const rec = id => DATA.recurring.find(r => r.id === id);
+  const item = id => DATA.items.find(i => i.id === id);
+  const who = p => p ? '<b>' + esc(p) + '</b> ' : '';
+  const when = ds => 'יום ' + DAYS[dow(ds)] + ' ' + short(ds);
+  switch (a.type) {
+    case 'add': return '★ חד־פעמי · ' + when(a.date) + ' · ' + who(a.person) + esc(a.title) + (a.time ? ' ' + esc(a.time) : '');
+    case 'add_recurring': return '↻ קבוע · כל יום ' + DAYS[a.weekday] + ' · ' + who(a.person) + esc(a.title) + (a.time ? ' ' + esc(a.time) : '');
+    case 'cancel': { const r = rec(a.recurringId); return '✕ לא מתקיים · ' + when(a.date) + ' · ' + (r ? who(r.person) + esc(r.title) : '?'); }
+    case 'delete_item': { const i = item(a.itemId); return '🗑 מחיקה · ' + (i ? when(i.date) + ' · ' + who(i.person) + esc(i.title) : '?'); }
+    case 'delete_recurring': { const r = rec(a.recurringId); return '🗑 הסרה מהקבועים · ' + (r ? 'יום ' + DAYS[r.weekday] + ' · ' + who(r.person) + esc(r.title) : '?'); }
+  }
+  return esc(JSON.stringify(a));
+}
+function isDuplicate(a, batch) {
+  if (a.type !== 'add') return false;
+  const t = norm(a.title);
+  const goingOff = new Set((batch || []).filter(b => b.type === 'cancel' && b.date === a.date).map(b => b.recurringId));
+  return dayEntries(a.date).some(e => !e.off && !(e.kind === 'rec' && goingOff.has(e.id)) && (norm(e.title).includes(t) || t.includes(norm(e.title))) && (!a.person || !e.person || a.person === e.person));
+}
+function valid(a) {
+  if (a.type === 'add') return /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') && a.title;
+  if (a.type === 'add_recurring') return a.weekday >= 0 && a.weekday <= 6 && a.title;
+  if (a.type === 'cancel') return a.date && DATA.recurring.some(r => r.id === a.recurringId);
+  if (a.type === 'delete_item') return DATA.items.some(i => i.id === a.itemId);
+  if (a.type === 'delete_recurring') return DATA.recurring.some(r => r.id === a.recurringId);
+  return false;
+}
+
+let CHK = [], EDITING = false, LASTRES = null;
+
+function dupHtml(a, acts) { return isDuplicate(a, acts) ? '<span class="dup">נראה שזה כבר רשום באותו יום</span>' : ''; }
+
+function showConfirm(res) {
+  const acts = (res.actions || []).filter(valid);
+  PENDING = acts; LASTRES = res; EDITING = false; CHK = acts.map(() => true);
+  if (!acts.length) {
+    const msg = res.answer ? '<div class="answer">' + esc(res.answer).replace(/\n/g, '<br>') + '</div>'
+                           : '<p class="note">' + esc(res.note || 'לא מצאתי מה להוסיף. אפשר לנסח שוב?') + '</p>';
+    openDlg('<h3>' + (res.answer ? 'התשובה' : 'לא הבנתי') + '</h3>' + msg + msTag(res) + '<div class="row"><button class="btn" id="cClose">סגירה</button></div>');
+    $('cClose').onclick = () => { if (res.answer) $('txt').value = ''; closeDlg(); };
+    return;
+  }
+  renderConfirm();
+}
+function msTag(res) { return res && res.ms ? '<div class="ms">הובן תוך ' + (res.ms / 1000).toFixed(1) + ' שניות</div>' : ''; }
+
+function editRow(a, i) {
+  const wd = '<select class="eDay">' + DAYS.map((d, k) => '<option value="' + k + '"' + (k === a.weekday ? ' selected' : '') + '>' + d + '</option>').join('') + '</select>';
+  const label = a.type === 'add' ? '★ חד־פעמי' : '↻ קבוע כל שבוע';
+  return '<div class="erow" data-row="' + i + '"><div class="full lab">' + label + '</div>' +
+    '<select class="eWho">' + peopleOptions(a.person).replace('<option value=""></option>', '<option value="">מי? (לא חובה)</option>') + '</select>' +
+    '<input class="eTitle" value="' + esc(a.title) + '" placeholder="מה">' +
+    '<input class="eTime" value="' + esc(a.time) + '" placeholder="שעה">' +
+    (a.type === 'add' ? '<input class="eDate" type="date" value="' + esc(a.date) + '">' : wd) + '</div>';
+}
+
+function renderConfirm() {
+  const acts = PENDING, res = LASTRES;
+  const rows = acts.map((a, i) => {
+    const editable = EDITING && (a.type === 'add' || a.type === 'add_recurring');
+    return '<div class="crow"><input type="checkbox" data-i="' + i + '"' + (CHK[i] ? ' checked' : '') + '><div class="cbody">' +
+      (editable ? editRow(a, i) : '<span>' + describe(a) + dupHtml(a, acts) + '</span>') + '</div></div>';
+  }).join('');
+  openDlg('<h3>לאשר את זה?</h3>' + (res.note ? '<p class="note">' + esc(res.note) + '</p>' : '') + rows + msTag(res) +
+    '<div id="cErr" class="err" hidden></div>' +
+    '<div class="row"><button class="btn primary" id="cOk">' + (EDITING ? 'שמירה ואישור' : 'אישור') + '</button>' +
+    (EDITING ? '' : '<button class="btn" id="cEdit">עריכה</button>') +
+    '<button class="btn" id="cNo">ביטול</button></div>');
+  dlg.querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = () => { CHK[+c.dataset.i] = c.checked; });
+  $('cNo').onclick = closeDlg;
+  if ($('cEdit')) $('cEdit').onclick = () => { EDITING = true; renderConfirm(); };
+  $('cOk').onclick = doConfirm;
+}
+
+function collectEdits() {
+  return PENDING.map((a, i) => {
+    const b = Object.assign({}, a);
+    const row = dlg.querySelector('[data-row="' + i + '"]');
+    if (!row) return b;
+    b.person = row.querySelector('.eWho').value;
+    b.title = row.querySelector('.eTitle').value.trim();
+    b.time = row.querySelector('.eTime').value.trim();
+    const d = row.querySelector('.eDate'); if (d) b.date = d.value;
+    const w = row.querySelector('.eDay'); if (w) b.weekday = +w.value;
+    return b;
+  });
+}
+
+function plain(a) {
+  const who = (a.person ? a.person + ' ' : '');
+  const tm = a.time ? ' ' + a.time : '';
+  const dayOf = d => DAYS[dow(d)] + ' ' + short(d);
+  if (a.type === 'add') return 'נוסף: ' + who + a.title + tm + ' (' + dayOf(a.date) + ')';
+  if (a.type === 'add_recurring') return 'נוסף קבוע: ' + who + a.title + tm + ' (כל יום ' + DAYS[a.weekday] + ')';
+  if (a.type === 'cancel') { const r = DATA.recurring.find(x => x.id === a.recurringId); return 'בוטל: ' + (r ? (r.person ? r.person + ' ' : '') + r.title : 'פריט קבוע') + ' (' + dayOf(a.date) + ')'; }
+  if (a.type === 'uncancel') { const r = DATA.recurring.find(x => x.id === a.recurringId); return 'חזר להתקיים: ' + (r ? r.title : 'פריט קבוע') + ' (' + dayOf(a.date) + ')'; }
+  if (a.type === 'delete_item') { const i = DATA.items.find(x => x.id === a.itemId); return i ? 'הוסר: ' + (i.person ? i.person + ' ' : '') + i.title + ' (' + dayOf(i.date) + ')' : ''; }
+  if (a.type === 'delete_recurring') { const r = DATA.recurring.find(x => x.id === a.recurringId); return r ? 'הוסר קבוע: ' + (r.person ? r.person + ' ' : '') + r.title : ''; }
+  if (a.type === 'edit_item') return 'עודכן: ' + who + a.title + tm + (a.date ? ' (' + dayOf(a.date) + ')' : '');
+  if (a.type === 'edit_recurring') return 'עודכן קבוע: ' + who + a.title + tm + ' (כל יום ' + DAYS[a.weekday] + ')';
+  return '';
+}
+function affectedDates(chosen) {
+  const set = new Set();
+  chosen.forEach(a => {
+    if (a.type === 'add' || a.type === 'cancel') set.add(a.date);
+    else if (a.type === 'add_recurring') set.add(nextDate(a.weekday));
+    else if (a.type === 'edit_item' && a.date) set.add(a.date);
+    else if (a.type === 'uncancel') set.add(a.date);
+    else if (a.type === 'delete_item') { const i = DATA.items.find(x => x.id === a.itemId); if (i) set.add(i.date); }
+  });
+  return [...set].sort();
+}
+
+async function doConfirm() {
+  const all = EDITING ? collectEdits() : PENDING;
+  const chosen = all.filter((a, i) => CHK[i]);
+  if (chosen.some(a => !valid(a))) { const e = $('cErr'); e.hidden = false; e.textContent = 'חסר תיאור או תאריך באחד הפריטים'; return; }
+  if (!chosen.length) { closeDlg(); return; }
+  const dates = affectedDates(chosen);
+  $('cOk').disabled = true; $('cOk').textContent = 'שומר…';
+  const ok = await save(chosen);
+  if (!ok) { closeDlg(); return; }
+  $('txt').value = '';
+  showDays(dates);
+}
+
+async function save(actions) {
+  if (!actions.length) return false;
+  showErr('');
+  try { DATA = await call('applyActions', actions, { me: ME(), lines: actions.map(plain).filter(String), dates: affectedDates(actions) }); render(); return true; }
+  catch (e) { showErr(e.message || String(e)); return false; }
+}
+
+// ---------- dialogs ----------
+const dlg = $('dlg');
+function openDlg(html, locked) { delete dlg.dataset.locked; if (locked) dlg.dataset.locked = '1'; dlg.innerHTML = html; if (!dlg.open) dlg.showModal(); }
+function closeDlg() { delete dlg.dataset.locked; if (dlg.open) dlg.close(); }
+dlg.addEventListener('click', e => { if (e.target === dlg && !dlg.dataset.locked) closeDlg(); });
+dlg.addEventListener('cancel', e => { if (dlg.dataset.locked) e.preventDefault(); });
+dlg.addEventListener('close', () => setTimeout(maybeShowNew, 300));
+
+// ---------- who am I + what's new ----------
+function updateMe() { const b = $('btnMe'); if (b) b.textContent = ME() ? 'אני: ' + ME() : 'מי אני?'; }
+function askWho(force) {
+  const list = (DATA && DATA.adults) || ['אבירם', 'דלית'];
+  openDlg('<h3>מי אתה/את?</h3><p>המכשיר הזה יזכור. כך נדע מי הוסיף ומי ראה.</p><div class="row" style="flex-direction:column">' +
+    list.map(n => '<button class="btn primary who" data-n="' + esc(n) + '">' + esc(n) + '</button>').join('') + '</div>' + (force ? '' : '<div class="row"><button class="btn" id="wNo">ביטול</button></div>'), force);
+  if ($('wNo')) $('wNo').onclick = closeDlg;
+  dlg.querySelectorAll('.who').forEach(b => b.onclick = async () => {
+    setMe(b.dataset.n); updateMe(); closeDlg();
+    try { DATA = await call('ackSeen', ME(), Date.now()); render(); } catch (e) {}
+  });
+}
+function ago(ts) {
+  const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (m < 1) return 'ממש עכשיו'; if (m < 60) return 'לפני ' + m + ' דק׳';
+  const h = Math.round(m / 60); if (h < 24) return 'לפני ' + h + ' שע׳';
+  return 'לפני ' + Math.round(h / 24) + ' ימים';
+}
+function unseen() { return (DATA.changes || []).filter(c => c.who && c.who !== ME() && c.ts > (DATA.seen || 0)); }
+function maybeShowNew() {
+  if (!DATA || !ME() || dlg.open) return;
+  const u = unseen(); if (!u.length) return;
+  const max = Math.max(...u.map(c => c.ts));
+  const dates = [...new Set(u.flatMap(c => c.dates))].filter(d => d >= DATA.today).sort();
+  openDlg('<h3>🔔 יש עדכון חדש בלו"ז</h3>' + u.map(c => '<div class="chg"><b>' + esc(c.who) + '</b> <small>' + ago(c.ts) + '</small><br>' + c.lines.map(esc).join('<br>') + '</div>').join('') +
+    '<div class="row"><button class="btn primary" id="nOk">ראיתי ✓</button>' + (dates.length ? '<button class="btn" id="nShow">הצגה בלוח</button>' : '') + '</div>', true);
+  const ack = async () => { try { DATA = await call('ackSeen', ME(), max); } catch (e) {} closeDlg(); render(); };
+  $('nOk').onclick = ack;
+  if (dates.length) $('nShow').onclick = async () => { try { DATA = await call('ackSeen', ME(), max); } catch (e) {} render(); showDays(dates); };
+}
+let REFRESHING = false;
+async function refresh() {
+  if (REFRESHING || document.hidden || !DATA || dlg.open) return;
+  REFRESHING = true;
+  try {
+    const d = await call('getData', ME());
+    if (JSON.stringify(d) !== JSON.stringify(DATA)) { DATA = d; render(); }
+    maybeShowNew();
+  } catch (e) {} finally { REFRESHING = false; }
+}
+setInterval(refresh, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+$('btnMe').onclick = () => askWho(false);
+
+function peopleOptions(sel) {
+  return '<option value=""></option>' + DATA.people.map(p => '<option' + (p === sel ? ' selected' : '') + '>' + esc(p) + '</option>').join('');
+}
+
+function dayBlock(ds) {
+  const hol = (HOL[ds] || []).map(h => '<span class="hol">' + esc(h) + '</span>').join(' ');
+  const ents = dayEntries(ds);
+  return '<h4 class="dh">יום ' + DAYS[dow(ds)] + ' ' + short(ds) + ' ' + hol + '</h4>' +
+    (ents.length ? ents.map(e => '<button class="item' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '" data-k="' + e.kind + '" data-id="' + esc(e.id) + '" data-date="' + ds + '">' + line(e) + '</button>').join('') : '<p class="empty">אין כלום ביום הזה.</p>');
+}
+function wireDayItems() { dlg.querySelectorAll('.item').forEach(b => b.onclick = () => itemMenu(b.dataset.k, b.dataset.id, b.dataset.date)); }
+
+function showDay(ds, heading) {
+  const start = windowStart(DATA.today), idx = Math.floor((new Date(ds) - new Date(start)) / 604800000);
+  openDlg((heading ? '<h3>' + esc(heading) + '</h3>' : '') + '<div class="rec-list">' + dayBlock(ds) + '</div>' +
+    '<div class="row"><button class="btn primary" id="dAdd">הוספה ליום הזה</button>' +
+    (idx >= 0 && idx < 4 ? '<button class="btn" id="dGo">הצגה בשבוע</button>' : '') +
+    '<button class="btn" id="dClose">סגירה</button></div>');
+  $('dClose').onclick = closeDlg;
+  $('dAdd').onclick = () => { editForm({ kind: 'one', it: null }); $('fDate').value = ds; };
+  if ($('dGo')) $('dGo').onclick = () => { closeDlg(); WEEK = idx; render(); const t = document.getElementById('d-' + ds); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+  wireDayItems();
+}
+
+function showDays(dates) {
+  if (!dates.length) return;
+  if (dates.length === 1) return showDay(dates[0], 'נשמר. כך נראה היום');
+  const shown = dates.slice(0, 6);
+  openDlg('<h3>נשמר. כך נראים הימים</h3><div class="rec-list">' + shown.map(dayBlock).join('') +
+    (dates.length > shown.length ? '<p class="note">ועוד ' + (dates.length - shown.length) + ' ימים</p>' : '') +
+    '</div><div class="row"><button class="btn primary" id="dClose">סגירה</button></div>');
+  $('dClose').onclick = closeDlg;
+  wireDayItems();
+}
+
+function itemMenu(kind, id, ds) {
+  if (kind === 'one') {
+    const it = DATA.items.find(i => i.id === id); if (!it) return;
+    openDlg('<h3>' + line(it) + '</h3><div class="dlg-actions">' +
+      '<button class="btn" id="mEdit">עריכה</button>' +
+      '<button class="btn danger" id="mDel">מחיקה</button>' +
+      '<button class="btn" id="mClose">סגירה</button></div>');
+    $('mEdit').onclick = () => editForm({ kind: 'one', it });
+    $('mDel').onclick = async () => { closeDlg(); await save([{ type: 'delete_item', itemId: id }]); };
+  } else {
+    const r = DATA.recurring.find(x => x.id === id); if (!r) return;
+    const off = DATA.items.some(i => i.type === 'cancel' && i.recurringId === id && i.date === ds);
+    openDlg('<h3>' + line(r) + '</h3><p class="note">קבוע · כל יום ' + DAYS[r.weekday] + '</p><div class="dlg-actions">' +
+      (off ? '<button class="btn primary" id="mUn">מתקיים בכל זאת ב־' + short(ds) + '</button>'
+           : '<button class="btn primary" id="mOff">לא מתקיים ב־' + short(ds) + ' בלבד</button>') +
+      '<button class="btn" id="mEdit">עריכת הקבוע</button>' +
+      '<button class="btn danger" id="mDel">הסרה מהקבועים לגמרי</button>' +
+      '<button class="btn" id="mClose">סגירה</button></div>');
+    if (off) $('mUn').onclick = async () => { closeDlg(); await save([{ type: 'uncancel', recurringId: id, date: ds }]); };
+    else $('mOff').onclick = async () => { closeDlg(); await save([{ type: 'cancel', recurringId: id, date: ds }]); };
+    $('mEdit').onclick = () => editForm({ kind: 'rec', it: r });
+    $('mDel').onclick = async () => { closeDlg(); await save([{ type: 'delete_recurring', recurringId: id }]); };
+  }
+  $('mClose').onclick = closeDlg;
+}
+
+function editForm({ kind, it }) {
+  const isNew = !it;
+  it = it || { person: '', title: '', time: '', date: DATA.today, weekday: dow(DATA.today) };
+  openDlg('<h3>' + (isNew ? 'הוספה ידנית' : 'עריכה') + '</h3><div class="form">' +
+    (isNew ? '<label>סוג<select id="fKind"><option value="one">חד־פעמי</option><option value="rec">קבוע כל שבוע</option></select></label>' : '') +
+    '<label>מי<select id="fWho">' + peopleOptions(it.person) + '</select></label>' +
+    '<label>מה<input id="fTitle" value="' + esc(it.title) + '"></label>' +
+    '<label>שעה<input id="fTime" value="' + esc(it.time) + '" placeholder="17:00 או 16:30-17:15"></label>' +
+    '<label id="lDate">תאריך<input id="fDate" type="date" value="' + esc(it.date || DATA.today) + '"></label>' +
+    '<label id="lDay">יום<select id="fDay">' + DAYS.map((d, i) => '<option value="' + i + '"' + (i === it.weekday ? ' selected' : '') + '>' + d + '</option>').join('') + '</select></label>' +
+    '</div><div class="row"><button class="btn primary" id="fSave">שמירה</button><button class="btn" id="fCancel">ביטול</button></div>');
+  const kindNow = () => isNew ? $('fKind').value : kind;
+  const sync = () => { $('lDate').hidden = kindNow() !== 'one'; $('lDay').hidden = kindNow() !== 'rec'; };
+  sync(); if (isNew) $('fKind').onchange = sync;
+  $('fDate').onchange = () => { if ($('fDate').value) $('fDay').value = dow($('fDate').value); };
+  $('fCancel').onclick = closeDlg;
+  $('fSave').onclick = async () => {
+    const v = { person: $('fWho').value, title: $('fTitle').value.trim(), time: $('fTime').value.trim() };
+    if (!v.title) { $('fTitle').focus(); return; }
+    closeDlg();
+    const k2 = kindNow();
+    if (isNew) await save([k2 === 'one' ? { type: 'add', date: $('fDate').value, ...v } : { type: 'add_recurring', weekday: +$('fDay').value, ...v }]);
+    else if (k2 === 'one') await save([{ type: 'edit_item', itemId: it.id, date: $('fDate').value, ...v }]);
+    else await save([{ type: 'edit_recurring', recurringId: it.id, weekday: +$('fDay').value, ...v }]);
+  };
+}
+
+function recurringList() {
+  let html = '<h3>פריטים קבועים</h3><div class="rec-list">';
+  for (let d = 0; d < 7; d++) {
+    const rs = DATA.recurring.filter(r => r.weekday === d).sort((a, b) => timeKey(a.time) - timeKey(b.time));
+    if (!rs.length) continue;
+    html += '<h4>' + DAYS[d] + '</h4>' + rs.map(r => '<div class="rec-line"><span>' + line(r) + '</span><button class="btn small" data-rid="' + esc(r.id) + '">עריכה</button></div>').join('');
+  }
+  html += '</div><div class="row"><button class="btn" id="rClose">סגירה</button></div>';
+  openDlg(html);
+  $('rClose').onclick = closeDlg;
+  dlg.querySelectorAll('[data-rid]').forEach(b => b.onclick = () => itemMenu('rec', b.dataset.rid, nextDate(DATA.recurring.find(r => r.id === b.dataset.rid).weekday)));
+}
+function nextDate(weekday) { let ds = DATA.today; while (dow(ds) !== weekday) ds = addDays(ds, 1); return ds; }
+
+// ---------- print ----------
+function printLines(ds) {
+  const ents = dayEntries(ds);
+  return ents.length ? ents.map(e => '<div class="li' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '">' + line(e) + '</div>').join('') : '';
+}
+function weekTable(ws) {
+  let h = '<table>';
+  for (let d = 0; d < 7; d++) {
+    const ds = addDays(ws, d);
+    const hol = (HOL[ds] || []).map(x => ' <span class="hol">' + esc(x) + '</span>').join('');
+    h += '<tr class="d' + d + (d >= 5 ? ' we' : '') + '"><td class="d"><b>' + DAYS[d] + '</b><span class="dt">' + short(ds) + '</span>' + hol + '</td><td>' + printLines(ds) + '</td></tr>';
+  }
+  return h + '</table>';
+}
+const PRINT_THEMES = { excel: 'כמו הקובץ המקורי', pastel: 'פסטל', clean: 'נקי ומינימלי', warm: 'חם ועדין' };
+function buildPrint(theme) {
+  theme = theme || (function () { try { return localStorage.getItem('printTheme'); } catch (e) { return null; } })() || 'excel';
+  $('print').className = 'th-' + theme;
+  const s = windowStart(DATA.today);
+  const w = i => addDays(s, i * 7);
+  const range = ws => '<bdi dir="ltr">' + rangeLabel(ws) + '</bdi>';
+  const end = addDays(s, 28);
+  const later = DATA.items.filter(i => i.type === 'oneoff' && i.date >= end).sort((a, b) => a.date < b.date ? -1 : 1).slice(0, 8);
+  $('print').innerHTML =
+    '<div class="pp big w1"><h1>השבוע הקרוב · ' + range(w(0)) + '</h1>' + weekTable(w(0)) + '</div>' +
+    '<div class="pp big w2"><h1>שבוע הבא · ' + range(w(1)) + '</h1>' + weekTable(w(1)) + '</div>' +
+    '<div class="pp"><div class="two">' +
+      '<div><h2>עוד שבועיים · ' + range(w(2)) + '</h2>' + weekTable(w(2)) + '</div>' +
+      '<div><h2>עוד שלושה שבועות · ' + range(w(3)) + '</h2>' + weekTable(w(3)) + '</div></div>' +
+      (later.length ? '<div class="later"><b>בהמשך:</b> ' + later.map(i => DAYS_SHORT[dow(i.date)] + ' ' + short(i.date) + ' ' + (i.person ? esc(i.person) + ' ' : '') + esc(i.title)).join(' · ') + '</div>' : '') +
+    '</div>';
+}
+
+// ---------- voice ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const MIC_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>';
+const STOP_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+let REC = null, V = null;
+
+function lis(html) { const l = $('listening'); l.hidden = false; l.innerHTML = html; }
+function lisHide() { $('listening').hidden = true; }
+function setMic(on) { $('mic').classList.toggle('rec', on); $('mic').innerHTML = on ? STOP_SVG : MIC_SVG; }
+function vDbg(ev) { V.log.push(ev); const d = $('lisDbg'); if (d) d.textContent = V.log.join(' > '); }
+function vRender() {
+  const final = V.final, interim = V.interim;
+  lis('<div class="lis-h"><span class="lis-dot' + (V.live ? ' live' : '') + '"></span><b>' + esc(V.state) + '</b><button class="x" id="lisX" aria-label="ביטול">✕</button></div>' +
+    '<div class="lis-t">' + esc(final) + (interim ? ' <span class="interim">' + esc(interim) + '</span>' : '') + '</div>' +
+    '<div class="lis-s" id="lisDbg">' + esc(V.log.join(' > ')) + '</div>' +
+    '<div class="lis-r">' + (V.ended ? '<button class="btn primary" id="lisAgain">לנסות שוב</button>' : '<button class="btn primary" id="lisDone">סיום ושליחה</button>') + '</div>');
+  $('lisX').onclick = voiceCancel;
+  if ($('lisDone')) $('lisDone').onclick = () => voiceStop(true);
+  if ($('lisAgain')) $('lisAgain').onclick = () => { lisHide(); voiceStart(); };
+}
+function vTimers(silenceMs) {
+  clearTimeout(V.tSil); V.tSil = setTimeout(() => voiceStop(true), silenceMs);
+}
+function voiceCancel() { if (REC) { V.send = false; try { REC.abort(); } catch (e) {} } cleanupVoice(); lisHide(); }
+function cleanupVoice() { if (V) { clearTimeout(V.tSil); clearTimeout(V.tMax); } REC = null; setMic(false); }
+function voiceStop(send) { if (!REC) return; V.send = send; try { REC.stop(); } catch (e) {} }
+
+function voiceStart() {
+  if (!SR) { V = { state: 'הדפדפן לא תומך בהקלטה כאן. אפשר ללחוץ על המיקרופון שבמקלדת.', final: '', interim: '', log: ['no-SpeechRecognition'], ended: true }; vRender(); $('txt').focus(); return; }
+  V = { state: 'מבקש גישה למיקרופון…', final: '', interim: '', log: [], live: false, send: true, ended: false };
+  REC = new SR();
+  REC.lang = 'he-IL'; REC.interimResults = true; REC.continuous = false; REC.maxAlternatives = 1;
+  setMic(true); vRender();
+  V.tSil = setTimeout(() => voiceStop(true), 9000);        // לא נשמע כלום
+  V.tMax = setTimeout(() => voiceStop(true), 45000);       // תקרה
+  REC.onstart = () => { V.state = 'מקשיב… אפשר לדבר'; V.live = true; vDbg('start'); vRender(); };
+  REC.onaudiostart = () => vDbg('audio');
+  REC.onspeechstart = () => { V.state = 'שומע אותך…'; vDbg('speech'); vRender(); };
+  REC.onresult = e => {
+    let fin = '', inter = '';
+    for (let i = 0; i < e.results.length; i++) { if (e.results[i].isFinal) fin += e.results[i][0].transcript; else inter += e.results[i][0].transcript; }
+    V.final = fin; V.interim = inter; vDbg('result'); vRender(); vTimers(2200);
+  };
+  REC.onerror = e => {
+    const msgs = { 'not-allowed': 'אין הרשאה למיקרופון בדף הזה', 'service-not-allowed': 'אין הרשאה לשירות הזיהוי בדף הזה', 'no-speech': 'לא שמעתי כלום', 'audio-capture': 'לא נמצא מיקרופון', 'network': 'אין חיבור לשירות הזיהוי', 'language-not-supported': 'עברית לא נתמכת כאן' };
+    if (e.error === 'aborted') return;
+    V.state = msgs[e.error] || 'שגיאה בהקלטה'; V.live = false; V.errored = true; vDbg('error:' + e.error); vRender();
+  };
+  REC.onend = () => {
+    vDbg('end');
+    const t = (V.final + ' ' + V.interim).trim(), send = V.send, errored = V.errored;
+    cleanupVoice(); V.live = false;
+    if (send && t) {
+      lisHide();
+      $('txt').value = ($('txt').value.trim() ? $('txt').value.trim() + ' ' : '') + t;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      submitText();
+    } else if (!errored && send) { V.state = 'לא שמעתי כלום'; V.ended = true; vRender(); }
+    else if (errored) { V.ended = true; vRender(); }
+  };
+  try { REC.start(); } catch (err) { V.state = 'לא הצלחתי להפעיל את ההקלטה'; V.log.push('start-failed:' + err.name); V.ended = true; cleanupVoice(); vRender(); }
+}
+// בתוך Apps Script המיקרופון של הדפדפן חסום, לכן הכפתור פותח את המקלדת ומנחה להכתבה
+function toggleMic() {
+  if (STANDALONE) { if (REC) voiceStop(true); else voiceStart(); return; }
+  const t = $('txt'); t.scrollIntoView({ block: 'center' }); t.focus();
+  let h = document.getElementById('micTip');
+  if (!h) { h = document.createElement('div'); h.id = 'micTip'; h.style.cssText = 'position:fixed;left:16px;right:16px;bottom:100px;background:#202124;color:#fff;border-radius:12px;padding:12px 16px;font-size:16px;text-align:center;z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.3)'; document.body.appendChild(h); }
+  h.textContent = '🎤 לוחצים על המיקרופון במקלדת ומדברים';
+  h.hidden = false; clearTimeout(h._t); h._t = setTimeout(() => { h.hidden = true; }, 4500);
+}
+
+// ---------- wire up ----------
+$('mic').onclick = toggleMic;
+$('btnDate').onclick = () => { const d = $('datePick'); d.value = DATA.today; try { d.showPicker(); } catch (e) { d.style.cssText = 'display:block;position:static;opacity:1;pointer-events:auto;width:auto;height:auto'; d.focus(); } };
+$('datePick').onchange = e => { if (e.target.value) { showDay(e.target.value); } };
+$('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (h) showDay(h.parentElement.id.replace('d-', '')); });
+$('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) { WEEK = +b.dataset.w; render(); } });
+$('btnGo').onclick = () => { if ($('btnGo').dataset.busy) { if (CANCEL) CANCEL(); } else submitText(); };
+$('txt').setAttribute('enterkeyhint', 'send');
+$('txt').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!$('btnGo').dataset.busy) submitText(); } });
+$('btnPhoto').onclick = () => $('file').click();
+$('file').onchange = e => { const f = e.target.files[0]; if (f) submitPhoto(f); };
+$('btnManual').onclick = () => editForm({ kind: 'one', it: null });
+$('btnRec').onclick = recurringList;
+$('btnPrint').onclick = () => {
+  let cur = 'excel'; try { cur = localStorage.getItem('printTheme') || 'excel'; } catch (e) {}
+  openDlg('<h3>הדפסה</h3><div class="form">' + Object.keys(PRINT_THEMES).map(k =>
+    '<label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:16px"><input type="radio" name="pt" value="' + k + '"' + (k === cur ? ' checked' : '') + '> ' + PRINT_THEMES[k] + '</label>').join('') +
+    '</div><div class="row"><button class="btn primary" id="pGo">הדפסה</button><button class="btn" id="pNo">ביטול</button></div>');
+  $('pNo').onclick = closeDlg;
+  $('pGo').onclick = () => {
+    const v = dlg.querySelector('input[name=pt]:checked').value;
+    try { localStorage.setItem('printTheme', v); } catch (e) {}
+    closeDlg(); buildPrint(v); setTimeout(() => window.print(), 50);
+  };
+};
+$('weeks').addEventListener('click', e => { const b = e.target.closest('.item'); if (b) itemMenu(b.dataset.k, b.dataset.id, b.dataset.date); });
+
+if (STANDALONE && !K) {
+  document.querySelector('.app').innerHTML = '<div style="padding:32px 16px;text-align:center"><h2>הלו"ז שלנו</h2><p>הדביקו את הקוד המשפחתי (או פתחו את הקישור המלא):</p><input id="kIn" style="font-size:18px;padding:10px;width:80%;max-width:320px;direction:ltr;text-align:center"><br><br><button class="btn primary" id="kGo">כניסה</button></div>';
+  document.getElementById('kGo').onclick = () => { const v = document.getElementById('kIn').value.trim(); if (v) { try { localStorage.setItem('familyCode', v); } catch (e) {} location.href = location.pathname + '?k=' + encodeURIComponent(v); } };
+} else call('getData', ME()).then(d => {
+  DATA = d; render(); updateMe();
+  if (!ME()) askWho(true); else maybeShowNew();
+  const t = document.getElementById('d-' + d.today);
+  if (t && window.innerWidth < 900) t.scrollIntoView({ block: 'center' });
+}).catch(e => { $('weeks').innerHTML = ''; showErr(e.message || String(e)); });
+</script>
+</body>
+</html>
