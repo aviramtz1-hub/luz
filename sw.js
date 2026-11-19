@@ -20,13 +20,30 @@ self.addEventListener('fetch', e => {
   }
 });
 
-// התראה קופצת כשבן/בת הזוג עדכנו משהו. ההתראה מגיעה בלי תוכן, כדי שפרטי הלו"ז לא יעברו דרך שרתים חיצוניים.
+// התראה קופצת: עדכון מבן/בת הזוג, או סיכום הבוקר. ההתראה מגיעה בלי תוכן, והטלפון עצמו שואל את הלו"ז מה לכתוב.
+// כך פרטי הלו"ז לא עוברים דרך שרתים חיצוניים. אם השאלה נכשלת, מוצגת הודעה כללית.
+self.window = self; try { importScripts('config.js'); } catch (e) {}
+async function pushContent() {
+  const generic = { title: 'הלו"ז שלנו', body: 'יש עדכון חדש בלו"ז. לחצו כדי לראות.', tag: 'luz-update', sticky: true };
+  try {
+    const c = await caches.open('cfg'); const r = await c.match('cfg'); if (!r || !self.LUZ_API) return generic;
+    const cfg = await r.json(); if (!cfg.k) return generic;
+    const res = await fetch(self.LUZ_API, { method: 'POST', body: JSON.stringify({ fn: 'pushText', args: [cfg.k, cfg.me || ''] }) });
+    const j = await res.json(); if (!j.ok) return generic;
+    const lines = j.data.lines || [];
+    if (j.data.unseen) return { title: 'יש עדכון חדש בלו"ז', body: lines.length ? 'היום:\n' + lines.join('\n') : 'לחצו כדי לראות.', tag: 'luz-update', sticky: true };
+    if (lines.length) return { title: 'היום בלו"ז', body: lines.join('\n'), tag: 'luz-today', sticky: false };
+  } catch (e) {}
+  return generic;
+}
 self.addEventListener('push', e => {
-  e.waitUntil(self.registration.showNotification('הלו"ז שלנו', {
-    body: 'יש עדכון חדש בלו"ז. לחצו כדי לראות.',
-    icon: 'icon-192.png', badge: 'icon-192.png', tag: 'luz-update', renotify: true,
-    requireInteraction: true, vibrate: [200, 100, 200], dir: 'rtl', lang: 'he'
-  }));
+  e.waitUntil((async () => {
+    const n = await pushContent();
+    await self.registration.showNotification(n.title, {
+      body: n.body, icon: 'icon-192.png', badge: 'icon-192.png', tag: n.tag, renotify: true,
+      requireInteraction: n.sticky, vibrate: [200, 100, 200], dir: 'rtl', lang: 'he'
+    });
+  })());
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();

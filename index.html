@@ -625,7 +625,10 @@ async function enablePush(silent) {
   } catch (e) { return false; }
 }
 // שואלים פעם אחת אם להפעיל התראות (בכל מכשיר)
+// שומר לשירות ההתראות את הקוד והשם, כדי שיוכל לשאול מה יש היום כשמגיעה התראה
+function saveCfg() { try { if (STANDALONE && 'caches' in window && ME() && K) caches.open('cfg').then(c => c.put('cfg', new Response(JSON.stringify({ k: K, me: ME() })))); } catch (e) {} }
 function maybeAskPush() {
+  saveCfg();
   if (!pushSupported() || !ME() || dlg.open) return;
   if (Notification.permission === 'granted') { enablePush(true); return; }
   let asked = false; try { asked = !!localStorage.getItem('pushAsked'); } catch (e) {}
@@ -937,7 +940,7 @@ if (STANDALONE && !K) {
   document.getElementById('kGo').onclick = () => { const v = document.getElementById('kIn').value.trim(); if (v) { try { localStorage.setItem('familyCode', v); } catch (e) {} location.href = location.pathname + '?k=' + encodeURIComponent(v); } };
 } else call('getData', ME()).then(d => {
   DATA = d; render(); updateMe();
-  updateUndo();
+  updateUndo(); saveCfg();
 if (!ME()) askWho(true); else { maybeShowNew(); setTimeout(maybeAskPush, 1500); }
   // קיצורי דרך מהאייקון (לחיצה ארוכה): ?a=voice / ?a=today
   try {
