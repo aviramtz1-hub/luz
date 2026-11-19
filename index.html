@@ -905,6 +905,20 @@ function toggleMic() {
 $('btnDate').onclick = () => { const d = $('datePick'); d.value = DATA.today; try { d.showPicker(); } catch (e) { d.style.cssText = 'display:block;position:static;opacity:1;pointer-events:auto;width:auto;height:auto'; d.focus(); } };
 $('datePick').onchange = e => { if (e.target.value) { showDay(e.target.value); } };
 $('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (!h) return; const day = h.parentElement; const ds = day.id.replace('d-', ''); if (day.classList.contains('fold')) { PAST_OPEN.add(ds); render(); } else showDay(ds); });
+// החלקה בין שבועות: שמאלה = השבוע הבא (כמו סדר הלשוניות), ימינה = הקודם
+(() => {
+  const w = $('weeks'); let st = null;
+  w.addEventListener('touchstart', e => { st = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null; }, { passive: true });
+  w.addEventListener('touchend', e => {
+    if (!st || dlg.open) { st = null; return; }
+    const t = e.changedTouches[0], dx = t.clientX - st.x, dy = t.clientY - st.y, dt = Date.now() - st.t; st = null;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || dt > 700) return;
+    const next = Math.max(0, Math.min(TAB_NAMES.length - 1, WEEK + (dx < 0 ? 1 : -1)));
+    if (next === WEEK) return;
+    WEEK = next; render(); window.scrollTo({ top: Math.min(window.scrollY, $('tabs').offsetTop), behavior: 'auto' });
+    const on = document.querySelector('.tab.on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, { passive: true });
+})();
 $('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) { WEEK = +b.dataset.w; render(); } });
 $('btnGo').onclick = () => { if ($('btnGo').dataset.busy) { if (CANCEL) CANCEL(); } else submitText(); };
 $('txt').setAttribute('enterkeyhint', 'send');
