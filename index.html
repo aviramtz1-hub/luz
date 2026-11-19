@@ -825,6 +825,17 @@ if (STANDALONE && !K) {
 } else call('getData', ME()).then(d => {
   DATA = d; render(); updateMe();
   if (!ME()) askWho(true); else maybeShowNew();
+  // קיצורי דרך מהאייקון (לחיצה ארוכה): ?a=voice / ?a=today
+  try {
+    const act = new URLSearchParams(location.search).get('a');
+    if (act) {
+      history.replaceState(null, '', location.pathname + location.search.replace(/[?&]a=[^&]*/, '').replace(/^&/, '?'));
+      if (ME() && !dlg.open) {
+        if (act === 'today') showDay(DATA.today);
+        else if (act === 'voice') setTimeout(toggleMic, 300);
+      }
+    }
+  } catch (e) {}
   const t = document.getElementById('d-' + d.today);
   if (t && window.innerWidth < 900) t.scrollIntoView({ block: 'center' });
 }).catch(e => { $('weeks').innerHTML = ''; showErr(e.message || String(e)); });
