@@ -61,6 +61,7 @@
   .day { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; min-height: 64px; }
   .day.today { background: var(--today); border-color: var(--accent); }
   .day.past { opacity: .55; }
+  #weeks { touch-action: pan-y; will-change: transform; }
   .day.fold { min-height: 0; padding: 5px 10px; }
   .day.fold .day-h { margin-bottom: 0; }
   .day-h { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
@@ -905,19 +906,37 @@ function toggleMic() {
 $('btnDate').onclick = () => { const d = $('datePick'); d.value = DATA.today; try { d.showPicker(); } catch (e) { d.style.cssText = 'display:block;position:static;opacity:1;pointer-events:auto;width:auto;height:auto'; d.focus(); } };
 $('datePick').onchange = e => { if (e.target.value) { showDay(e.target.value); } };
 $('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (!h) return; const day = h.parentElement; const ds = day.id.replace('d-', ''); if (day.classList.contains('fold')) { PAST_OPEN.add(ds); render(); } else if (day.classList.contains('past')) { PAST_OPEN.delete(ds); render(); } else showDay(ds); });
-// החלקה בין שבועות: שמאלה = השבוע הבא (כמו סדר הלשוניות), ימינה = הקודם
+// החלקה בין שבועות, כמו משיכה: השבוע זז עם האצבע. החלקה ימינה = השבוע הבא נכנס משמאל, החלקה שמאלה = הקודם.
 (() => {
   const w = $('weeks'); let st = null;
-  w.addEventListener('touchstart', e => { st = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null; }, { passive: true });
-  w.addEventListener('touchend', e => {
-    if (!st || dlg.open) { st = null; return; }
-    const t = e.changedTouches[0], dx = t.clientX - st.x, dy = t.clientY - st.y, dt = Date.now() - st.t; st = null;
-    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || dt > 700) return;
-    const next = Math.max(0, Math.min(TAB_NAMES.length - 1, WEEK + (dx < 0 ? 1 : -1)));
-    if (next === WEEK) return;
-    WEEK = next; render(); window.scrollTo({ top: Math.min(window.scrollY, $('tabs').offsetTop), behavior: 'auto' });
-    const on = document.querySelector('.tab.on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const setX = (x, anim) => { w.style.transition = anim ? 'transform .18s ease-out, opacity .18s ease-out' : 'none'; w.style.transform = x ? 'translateX(' + x + 'px)' : ''; w.style.opacity = x ? String(Math.max(.35, 1 - Math.abs(x) / 450)) : ''; };
+  const canGo = dx => { const n = WEEK + (dx > 0 ? 1 : -1); return n >= 0 && n < TAB_NAMES.length; };
+  w.addEventListener('touchstart', e => { st = e.touches.length === 1 && !dlg.open ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), lock: null } : null; }, { passive: true });
+  w.addEventListener('touchmove', e => {
+    if (!st) return;
+    const t = e.touches[0], dx = t.clientX - st.x, dy = t.clientY - st.y;
+    if (st.lock === null && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) st.lock = Math.abs(dx) > Math.abs(dy) * 1.4 ? 'h' : 'v';
+    if (st.lock !== 'h') return;
+    setX(canGo(dx) ? dx * 0.9 : dx * 0.25, false);
   }, { passive: true });
+  const end = e => {
+    if (!st) return; const s0 = st; st = null;
+    if (s0.lock !== 'h') return;
+    const t = (e.changedTouches && e.changedTouches[0]) || { clientX: s0.x }, dx = t.clientX - s0.x, fast = Math.abs(dx) > 40 && Date.now() - s0.t < 250;
+    if (e.type === 'touchcancel' || !(Math.abs(dx) > 80 || fast) || !canGo(dx)) { setX(0, true); return; }
+    const dir = dx > 0 ? 1 : -1, W = w.offsetWidth || 360;
+    const finish = () => {
+      WEEK += dir; render(); window.scrollTo({ top: Math.min(window.scrollY, $('tabs').offsetTop), behavior: 'auto' });
+      const on = document.querySelector('.tab.on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+      if (reduce) { setX(0, false); return; }
+      setX(-dir * W * 0.5, false); void w.offsetWidth; setX(0, true);
+    };
+    if (reduce) { finish(); return; }
+    setX(dir * W * 0.6, true); setTimeout(finish, 150);
+  };
+  w.addEventListener('touchend', end, { passive: true });
+  w.addEventListener('touchcancel', end, { passive: true });
 })();
 $('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) { WEEK = +b.dataset.w; render(); } });
 $('btnGo').onclick = () => { if ($('btnGo').dataset.busy) { if (CANCEL) CANCEL(); } else submitText(); };
