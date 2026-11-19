@@ -71,6 +71,7 @@
   .item .t { color: var(--muted); font-size: 14px; white-space: nowrap; }
   .item.one { background: var(--star-bg); border-radius: 6px; padding: 3px 5px; margin: 2px 0; }
   .item.one::before { content: "★ "; color: var(--star); }
+  #btnUndo:disabled { opacity: .35; cursor: default; }
   .item.off { text-decoration: line-through; color: var(--muted); }
   .item.busy-edit, .item.busy-del { position: relative; border-radius: 8px; animation: busyGlow 1.2s ease-in-out infinite; background: linear-gradient(100deg, transparent 30%, var(--busy-sh) 50%, transparent 70%) 0 0/250% 100% no-repeat, var(--busy-bg); }
   .item.busy-edit { --busy: #f08c00; --busy-bg: rgba(240,140,0,.08); --busy-sh: rgba(240,140,0,.28); }
@@ -175,7 +176,7 @@
   <header>
     <h1>הלו"ז שלנו</h1>
     <button class="btn small" id="btnMe" hidden></button>
-    <button class="btn small" id="btnUndo" aria-label="ביטול הפעולה האחרונה" title="ביטול הפעולה האחרונה" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button class="btn small" id="btnUndo" aria-label="ביטול הפעולה האחרונה" title="ביטול הפעולה האחרונה" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
     <button class="btn small" id="btnSet" aria-label="הגדרות" title="הגדרות">⚙️</button>
     <button class="btn small" id="btnRec">קבועים</button>
     <button class="btn small" id="btnPrint">הדפסה</button>
@@ -503,7 +504,7 @@ function markBusy(actions) {
 const UNDO_KEY = 'undoLast';
 function undoGet() { try { const u = JSON.parse(localStorage.getItem(UNDO_KEY) || 'null'); return u && Date.now() - (u.ts || 0) < 30 * 60000 ? u : null; } catch (e) { return null; } }
 function undoSet(v) { try { v ? localStorage.setItem(UNDO_KEY, JSON.stringify(v)) : localStorage.removeItem(UNDO_KEY); } catch (e) {} updateUndo(); }
-function updateUndo() { const u = undoGet(), b = $('btnUndo'); if (!b) return; b.hidden = !(u && u.inv && u.inv.length); b.title = u && u.label ? 'ביטול: ' + u.label : 'ביטול הפעולה האחרונה'; }
+function updateUndo() { const u = undoGet(), b = $('btnUndo'); if (!b) return; b.disabled = !(u && u.inv && u.inv.length); b.title = u && u.label ? 'ביטול: ' + u.label : 'אין מה לבטל'; }
 function inverseOf(actions, before) {
   const inv = [];
   actions.forEach(a => {
@@ -547,7 +548,7 @@ $('btnUndo').onclick = async () => {
   if (!ok) { undoSet(null); showErr('אי אפשר לבטל: משהו השתנה בינתיים.'); return; }
   const b = $('btnUndo'); b.disabled = true;
   await save(u.inv, true);
-  b.disabled = false;
+  updateUndo();
 };
 
 // ---------- dialogs ----------
