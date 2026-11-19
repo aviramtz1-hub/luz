@@ -181,7 +181,7 @@
       <button class="btn" id="btnDate" title="מה יש ביום מסוים">📅 תאריך</button>
       <input type="date" id="datePick" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px" tabindex="-1">
       <input type="file" id="file" accept="image/*" hidden>
-      <span class="hint">אפשר לדבר: לוחצים על המיקרופון שבמקלדת ואומרים.</span>
+      <span class="hint">אפשר לדבר במיקרופון (גוררים אותו לאן שנוח), או להדביק צילום של הודעה.</span>
     </div>
     <div id="err" class="err" hidden></div>
   </section>
@@ -743,7 +743,28 @@ function toggleMic() {
 }
 
 // ---------- wire up ----------
-$('mic').onclick = toggleMic;
+// מיקרופון שאפשר לגרור לכל מקום במסך. לחיצה רגילה מפעילה, גרירה מזיזה. המיקום נשמר במכשיר.
+(function () {
+  const m = $('mic'); let st = null, moved = false;
+  function place(x, y) {
+    const w = m.offsetWidth, h = m.offsetHeight;
+    x = Math.max(4, Math.min(window.innerWidth - w - 4, x)); y = Math.max(4, Math.min(window.innerHeight - h - 4, y));
+    m.style.left = x + 'px'; m.style.top = y + 'px'; m.style.right = 'auto'; m.style.bottom = 'auto';
+    return { x: x / window.innerWidth, y: y / window.innerHeight };
+  }
+  try { const p = JSON.parse(localStorage.getItem('micPos') || 'null'); if (p) place(p.x * window.innerWidth, p.y * window.innerHeight); } catch (e) {}
+  m.style.touchAction = 'none';
+  m.addEventListener('pointerdown', e => { const r = m.getBoundingClientRect(); st = { dx: e.clientX - r.left, dy: e.clientY - r.top, x0: e.clientX, y0: e.clientY }; moved = false; try { m.setPointerCapture(e.pointerId); } catch (er) {} });
+  m.addEventListener('pointermove', e => {
+    if (!st) return;
+    if (!moved && Math.hypot(e.clientX - st.x0, e.clientY - st.y0) < 10) return;
+    moved = true; const pos = place(e.clientX - st.dx, e.clientY - st.dy);
+    try { localStorage.setItem('micPos', JSON.stringify(pos)); } catch (er) {}
+  });
+  m.addEventListener('pointerup', () => { st = null; });
+  m.addEventListener('pointercancel', () => { st = null; });
+  m.addEventListener('click', e => { if (moved) { moved = false; e.preventDefault(); return; } toggleMic(); });
+})();
 $('btnDate').onclick = () => { const d = $('datePick'); d.value = DATA.today; try { d.showPicker(); } catch (e) { d.style.cssText = 'display:block;position:static;opacity:1;pointer-events:auto;width:auto;height:auto'; d.focus(); } };
 $('datePick').onchange = e => { if (e.target.value) { showDay(e.target.value); } };
 $('weeks').addEventListener('click', e => { const h = e.target.closest('.day-h'); if (h) showDay(h.parentElement.id.replace('d-', '')); });
@@ -753,6 +774,13 @@ $('txt').setAttribute('enterkeyhint', 'send');
 $('txt').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!$('btnGo').dataset.busy) submitText(); } });
 $('btnPhoto').onclick = () => $('file').click();
 $('file').onchange = e => { const f = e.target.files[0]; if (f) submitPhoto(f); };
+// הדבקת תמונה (Ctrl+V או "הדבקה" בטלפון) או גרירת תמונה לשורת הכתיבה
+$('txt').addEventListener('paste', e => {
+  const it = [...((e.clipboardData && e.clipboardData.items) || [])].find(i => i.kind === 'file' && /^image\//.test(i.type));
+  if (it) { e.preventDefault(); const f = it.getAsFile(); if (f) submitPhoto(f); }
+});
+$('txt').addEventListener('dragover', e => { if ([...(e.dataTransfer.items || [])].some(i => i.kind === 'file')) e.preventDefault(); });
+$('txt').addEventListener('drop', e => { const f = [...(e.dataTransfer.files || [])].find(x => /^image\//.test(x.type)); if (f) { e.preventDefault(); submitPhoto(f); } });
 $('btnManual').onclick = () => editForm({ kind: 'one', it: null });
 $('btnRec').onclick = recurringList;
 $('btnPrint').onclick = () => {
