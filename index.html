@@ -817,12 +817,11 @@ let REC = null, V = null;
 function lis(html) { const l = $('listening'); l.hidden = false; l.innerHTML = html; }
 function lisHide() { $('listening').hidden = true; }
 function setMic(on) { $('mic').classList.toggle('rec', on); $('mic').innerHTML = on ? STOP_SVG : MIC_SVG; }
-function vDbg(ev) { V.log.push(ev); const d = $('lisDbg'); if (d) d.textContent = V.log.join(' > '); }
+function vDbg(ev) { V.log.push(ev); }
 function vRender() {
   const final = V.final, interim = V.interim;
   lis('<div class="lis-h"><span class="lis-dot' + (V.live ? ' live' : '') + '"></span><b>' + esc(V.state) + '</b><button class="x" id="lisX" aria-label="ביטול">✕</button></div>' +
     '<div class="lis-t">' + esc(final) + (interim ? ' <span class="interim">' + esc(interim) + '</span>' : '') + '</div>' +
-    '<div class="lis-s" id="lisDbg">' + esc(V.log.join(' > ')) + '</div>' +
     '<div class="lis-r">' + (V.ended ? '<button class="btn primary" id="lisAgain">לנסות שוב</button>' : '<button class="btn primary" id="lisDone">סיום ושליחה</button>') + '</div>');
   $('lisX').onclick = voiceCancel;
   if ($('lisDone')) $('lisDone').onclick = () => voiceStop(true);
