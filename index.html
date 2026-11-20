@@ -62,6 +62,14 @@
   .day.today { background: var(--today); border-color: var(--accent); }
   .day.past { opacity: .55; }
   html { overflow-x: hidden; }
+  .opt.pal { gap: 6px; }
+  .sw { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 8px; min-width: 56px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); cursor: pointer; font-size: 12px; }
+  .sw i { width: 26px; height: 26px; border-radius: 50%; display: block; }
+  .opt.pal button.sw.on { background: var(--card); color: var(--ink); outline: 2px solid var(--accent); outline-offset: 1px; }
+  #palToast { position: fixed; left: 12px; right: 12px; bottom: 90px; max-width: 420px; margin: 0 auto; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,.22); z-index: 60; animation: ptIn .25s ease-out; }
+  .pt-q { font-weight: 600; margin-bottom: 8px; }
+  .pt-b { display: flex; gap: 8px; flex-wrap: wrap; }
+  @keyframes ptIn { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
   .pick { display: flex; gap: 12px; margin: 6px 0 4px; }
   .tile { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--accent); font: inherit; font-size: 15px; cursor: pointer; }
   .tile:first-child { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -220,6 +228,24 @@
 
 <script>
 const K = (function(){try{var q=new URLSearchParams(location.search),u=q.get('k');if(u){localStorage.setItem('familyCode',u);q.delete('k');var rest=q.toString();history.replaceState(null,'',location.pathname+(rest?'?'+rest:'')+location.hash);return u;}return localStorage.getItem('familyCode')||'';}catch(e){return '';}})();
+
+// ---------- פלטות צבעים (פר משתמש, נשמר במכשיר) ----------
+const PALETTES = {
+  'כחול':   { bg: '#f6f5f2', accent: '#1f6feb', today: '#e8f0fe', star: '#b45309', 'star-bg': '#fff4e0', hol: '#6d28d9', 'hol-bg': '#f1ebff', line: '#e3e1dc' },
+  'ירוק':   { bg: '#f2f6f1', accent: '#2f7d5b', today: '#e3f2ea', star: '#9a6700', 'star-bg': '#fff3d6', hol: '#6d28d9', 'hol-bg': '#f1ebff', line: '#dde4dc' },
+  'טורקיז': { bg: '#f0f6f6', accent: '#0e8a94', today: '#dff3f4', star: '#b45309', 'star-bg': '#fff4e0', hol: '#6d28d9', 'hol-bg': '#f1ebff', line: '#d9e4e5' },
+  'סגול':   { bg: '#f6f4fa', accent: '#6d4fd6', today: '#eeeafc', star: '#b45309', 'star-bg': '#fff4e0', hol: '#0f766e', 'hol-bg': '#e0f4f1', line: '#e2dfec' },
+  'ורוד':   { bg: '#faf4f6', accent: '#d6457a', today: '#fde8f0', star: '#9a6700', 'star-bg': '#fff3d6', hol: '#6d28d9', 'hol-bg': '#f1ebff', line: '#eadfe3' },
+  'כתום':   { bg: '#faf5ef', accent: '#d9622b', today: '#fdebdf', star: '#8a5a00', 'star-bg': '#fff1d0', hol: '#6d28d9', 'hol-bg': '#f1ebff', line: '#e8dfd5' },
+  'גרפיט':  { bg: '#f3f4f5', accent: '#3f4a5a', today: '#e6eaef', star: '#b45309', 'star-bg': '#fff4e0', hol: '#6d28d9', 'hol-bg': '#f1ebff', line: '#dcdfe3' }
+};
+function palName() { try { const n = localStorage.getItem('palette'); return PALETTES[n] ? n : 'כחול'; } catch (e) { return 'כחול'; } }
+function applyPalette(name) {
+  const pl = PALETTES[name] || PALETTES['כחול'], r = document.documentElement.style;
+  Object.keys(pl).forEach(k => r.setProperty('--' + k, pl[k]));
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = pl.accent;
+}
+applyPalette(palName());
 const HOL = {"2026-09-05":["סליחות"],"2026-09-11":["ערב ראש השנה"],"2026-09-12":["ראש השנה 5787"],"2026-09-13":["ראש השנה ב׳"],"2026-09-20":["ערב יום כפור"],"2026-09-21":["יום כפור"],"2026-09-25":["ערב סוכות"],"2026-09-26":["סוכות א׳"],"2026-09-27":["סוכות ב׳ (חוה״מ)"],"2026-09-28":["סוכות ג׳ (חוה״מ)"],"2026-09-29":["סוכות ד׳ (חוה״מ)"],"2026-09-30":["סוכות ה׳ (חוה״מ)"],"2026-10-01":["סוכות ו׳ (חוה״מ)"],"2026-10-02":["סוכות ז׳ (הושענא רבה)"],"2026-10-03":["שמיני עצרת"],"2026-10-22":["יום הזכרון ליצחק רבין"],"2026-12-04":["חנוכה: א׳ נר"],"2026-12-05":["חנוכה: ב׳ נרות"],"2026-12-06":["חנוכה: ג׳ נרות"],"2026-12-07":["חנוכה: ד׳ נרות"],"2026-12-08":["חנוכה: ה׳ נרות"],"2026-12-09":["חנוכה: ו׳ נרות"],"2026-12-10":["חנוכה: ז׳ נרות"],"2026-12-11":["חנוכה: ח׳ נרות"],"2026-12-12":["חנוכה: יום ח׳"],"2027-01-23":["ט״ו בשבט"],"2027-02-21":["פורים קטן"],"2027-02-22":["שושן פורים קטן"],"2027-03-22":["ערב פורים"],"2027-03-23":["פורים"],"2027-03-24":["שושן פורים"],"2027-04-21":["ערב פסח"],"2027-04-22":["פסח א׳"],"2027-04-23":["פסח ב׳ (חוה״מ)"],"2027-04-24":["פסח ג׳ (חוה״מ)"],"2027-04-25":["פסח ד׳ (חוה״מ)"],"2027-04-26":["פסח ה׳ (חוה״מ)"],"2027-04-27":["פסח ו׳ (חוה״מ)"],"2027-04-28":["פסח ז׳"],"2027-05-04":["יום השואה"],"2027-05-11":["יום הזכרון"],"2027-05-12":["יום העצמאות"],"2027-05-25":["ל״ג בעומר"],"2027-06-04":["יום ירושלים"],"2027-06-10":["ערב שבועות"],"2027-06-11":["שבועות"],"2027-08-11":["ערב תשעה באב"],"2027-08-12":["תשעה באב"],"2027-09-03":["ראש השנה למעשר בהמה"],"2027-09-25":["סליחות"],"2027-10-01":["ערב ראש השנה"],"2027-10-02":["ראש השנה 5788"],"2027-10-03":["ראש השנה ב׳"],"2027-10-10":["ערב יום כפור"],"2027-10-11":["יום כפור"],"2027-10-15":["ערב סוכות"],"2027-10-16":["סוכות א׳"],"2027-10-17":["סוכות ב׳ (חוה״מ)"],"2027-10-18":["סוכות ג׳ (חוה״מ)"],"2027-10-19":["סוכות ד׳ (חוה״מ)"],"2027-10-20":["סוכות ה׳ (חוה״מ)"],"2027-10-21":["סוכות ו׳ (חוה״מ)"],"2027-10-22":["סוכות ז׳ (הושענא רבה)"],"2027-10-23":["שמיני עצרת"],"2027-11-11":["יום הזכרון ליצחק רבין"],"2027-12-24":["חנוכה: א׳ נר"],"2027-12-25":["חנוכה: ב׳ נרות"],"2027-12-26":["חנוכה: ג׳ נרות"],"2027-12-27":["חנוכה: ד׳ נרות"],"2027-12-28":["חנוכה: ה׳ נרות"],"2027-12-29":["חנוכה: ו׳ נרות"],"2027-12-30":["חנוכה: ז׳ נרות"],"2027-12-31":["חנוכה: ח׳ נרות"],"2028-01-01":["חנוכה: יום ח׳"],"2028-02-12":["ט״ו בשבט"],"2028-03-11":["ערב פורים"],"2028-03-12":["פורים"],"2028-03-13":["שושן פורים"],"2028-04-10":["ערב פסח"],"2028-04-11":["פסח א׳"],"2028-04-12":["פסח ב׳ (חוה״מ)"],"2028-04-13":["פסח ג׳ (חוה״מ)"],"2028-04-14":["פסח ד׳ (חוה״מ)"],"2028-04-15":["פסח ה׳ (חוה״מ)"],"2028-04-16":["פסח ו׳ (חוה״מ)"],"2028-04-17":["פסח ז׳"],"2028-04-24":["יום השואה"],"2028-05-01":["יום הזכרון"],"2028-05-02":["יום העצמאות"],"2028-05-14":["ל״ג בעומר"],"2028-05-24":["יום ירושלים"],"2028-05-30":["ערב שבועות"],"2028-05-31":["שבועות"],"2028-07-31":["ערב תשעה באב"],"2028-08-01":["תשעה באב"],"2028-08-23":["ראש השנה למעשר בהמה"],"2028-09-16":["סליחות"],"2028-09-20":["ערב ראש השנה"],"2028-09-21":["ראש השנה 5789"],"2028-09-22":["ראש השנה ב׳"],"2028-09-29":["ערב יום כפור"],"2028-09-30":["יום כפור"],"2028-10-04":["ערב סוכות"],"2028-10-05":["סוכות א׳"],"2028-10-06":["סוכות ב׳ (חוה״מ)"],"2028-10-07":["סוכות ג׳ (חוה״מ)"],"2028-10-08":["סוכות ד׳ (חוה״מ)"],"2028-10-09":["סוכות ה׳ (חוה״מ)"],"2028-10-10":["סוכות ו׳ (חוה״מ)"],"2028-10-11":["סוכות ז׳ (הושענא רבה)"],"2028-10-12":["שמיני עצרת"],"2028-11-01":["יום הזכרון ליצחק רבין"],"2028-12-12":["חנוכה: א׳ נר"],"2028-12-13":["חנוכה: ב׳ נרות"],"2028-12-14":["חנוכה: ג׳ נרות"],"2028-12-15":["חנוכה: ד׳ נרות"],"2028-12-16":["חנוכה: ה׳ נרות"],"2028-12-17":["חנוכה: ו׳ נרות"],"2028-12-18":["חנוכה: ז׳ נרות"],"2028-12-19":["חנוכה: ח׳ נרות"],"2028-12-20":["חנוכה: יום ח׳"],"2029-01-31":["ט״ו בשבט"],"2029-02-28":["ערב פורים"],"2029-03-01":["פורים"],"2029-03-02":["שושן פורים"],"2029-03-30":["ערב פסח"],"2029-03-31":["פסח א׳"],"2029-04-01":["פסח ב׳ (חוה״מ)"],"2029-04-02":["פסח ג׳ (חוה״מ)"],"2029-04-03":["פסח ד׳ (חוה״מ)"],"2029-04-04":["פסח ה׳ (חוה״מ)"],"2029-04-05":["פסח ו׳ (חוה״מ)"],"2029-04-06":["פסח ז׳"],"2029-04-12":["יום השואה"],"2029-04-18":["יום הזכרון"],"2029-04-19":["יום העצמאות"],"2029-05-03":["ל״ג בעומר"],"2029-05-13":["יום ירושלים"],"2029-05-19":["ערב שבועות"],"2029-05-20":["שבועות"],"2029-07-21":["ערב תשעה באב"],"2029-07-22":["(תשעה באב (נדחה"],"2029-08-12":["ראש השנה למעשר בהמה"],"2029-09-01":["סליחות"],"2029-09-09":["ערב ראש השנה"],"2029-09-10":["ראש השנה 5790"],"2029-09-11":["ראש השנה ב׳"],"2029-09-18":["ערב יום כפור"],"2029-09-19":["יום כפור"],"2029-09-23":["ערב סוכות"],"2029-09-24":["סוכות א׳"],"2029-09-25":["סוכות ב׳ (חוה״מ)"],"2029-09-26":["סוכות ג׳ (חוה״מ)"],"2029-09-27":["סוכות ד׳ (חוה״מ)"],"2029-09-28":["סוכות ה׳ (חוה״מ)"],"2029-09-29":["סוכות ו׳ (חוה״מ)"],"2029-09-30":["סוכות ז׳ (הושענא רבה)"],"2029-10-01":["שמיני עצרת"],"2029-10-21":["יום הזכרון ליצחק רבין"],"2029-12-01":["חנוכה: א׳ נר"],"2029-12-02":["חנוכה: ב׳ נרות"],"2029-12-03":["חנוכה: ג׳ נרות"],"2029-12-04":["חנוכה: ד׳ נרות"],"2029-12-05":["חנוכה: ה׳ נרות"],"2029-12-06":["חנוכה: ו׳ נרות"],"2029-12-07":["חנוכה: ז׳ נרות"],"2029-12-08":["חנוכה: ח׳ נרות"],"2029-12-09":["חנוכה: יום ח׳"],"2030-01-19":["ט״ו בשבט"],"2030-02-17":["פורים קטן"],"2030-02-18":["שושן פורים קטן"],"2030-03-18":["ערב פורים"],"2030-03-19":["פורים"],"2030-03-20":["שושן פורים"],"2030-04-17":["ערב פסח"],"2030-04-18":["פסח א׳"],"2030-04-19":["פסח ב׳ (חוה״מ)"],"2030-04-20":["פסח ג׳ (חוה״מ)"],"2030-04-21":["פסח ד׳ (חוה״מ)"],"2030-04-22":["פסח ה׳ (חוה״מ)"],"2030-04-23":["פסח ו׳ (חוה״מ)"],"2030-04-24":["פסח ז׳"],"2030-04-30":["יום השואה"],"2030-05-07":["יום הזכרון"],"2030-05-08":["יום העצמאות"],"2030-05-21":["ל״ג בעומר"],"2030-05-31":["יום ירושלים"],"2030-06-06":["ערב שבועות"],"2030-06-07":["שבועות"],"2030-08-07":["ערב תשעה באב"],"2030-08-08":["תשעה באב"],"2030-08-30":["ראש השנה למעשר בהמה"]};
 const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 const DAYS_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
@@ -674,12 +700,14 @@ function settings() {
   const cur = micSize();
   openDlg('<h3>הגדרות</h3><p style="color:var(--muted);margin-top:0">חלות על המכשיר הזה בלבד.</p>' +
     '<b>גודל המיקרופון</b><div class="opt">' + Object.keys(MIC_SIZES).map(k => '<button class="btn' + (MIC_SIZES[k] === cur ? ' on' : '') + '" data-ms="' + MIC_SIZES[k] + '">' + k + '</button>').join('') + '</div>' +
+    '<b>צבעים</b><div class="opt pal">' + Object.keys(PALETTES).map(n => '<button class="sw' + (n === palName() ? ' on' : '') + '" data-pal="' + n + '" aria-label="' + n + '"><i style="background:' + PALETTES[n].accent + '"></i><span>' + n + '</span></button>').join('') + '</div>' +
     '<b>סגנון ההחלקה בין שבועות</b><div class="opt"><button class="btn' + (swipeFx() === 'blur' ? ' on' : '') + '" data-fx="blur">טשטוש</button><button class="btn' + (swipeFx() === 'carousel' ? ' on' : '') + '" data-fx="carousel">קרוסלה</button></div>' +
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
+  dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
   dlg.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { try { localStorage.setItem('swipeFx', b.dataset.fx); } catch (e) {} settings(); });
   $('sMicReset').onclick = () => { try { localStorage.removeItem('micPos'); } catch (e) {} const m = $('mic'); m.style.left = m.style.top = m.style.right = m.style.bottom = ''; };
   $('sWho').onclick = () => askWho(false);
@@ -687,6 +715,27 @@ function settings() {
   $('sClose').onclick = closeDlg;
 }
 $('btnSet').onclick = settings;
+
+// אחרי החלפת פלטה: כמה שניות אחר כך קופצת שאלה קטנה
+let PAL_PREV = null, PAL_T = null, PAL_T2 = null;
+function choosePalette(name) {
+  if (name === palName()) return;
+  PAL_PREV = palName();
+  try { localStorage.setItem('palette', name); } catch (e) {}
+  applyPalette(name);
+  clearTimeout(PAL_T); clearTimeout(PAL_T2); const old = $('palToast'); if (old) old.remove();
+  PAL_T = setTimeout(showPalToast, 3500);
+}
+function showPalToast() {
+  const t = document.createElement('div'); t.id = 'palToast';
+  t.innerHTML = '<div class="pt-q">איך הצבעים?</div><div class="pt-b"><button class="btn primary" id="ptOk">מהמם!</button><button class="btn" id="ptBack">תחזיר לקודם</button><button class="btn" id="ptOther">אופציה אחרת</button></div>';
+  document.body.appendChild(t);
+  const done = () => { clearTimeout(PAL_T2); t.remove(); };
+  $('ptOk').onclick = done;
+  $('ptBack').onclick = () => { done(); try { localStorage.setItem('palette', PAL_PREV); } catch (e) {} applyPalette(PAL_PREV); };
+  $('ptOther').onclick = () => { done(); settings(); };
+  PAL_T2 = setTimeout(done, 30000);
+}
 
 function peopleOptions(sel) {
   return '<option value=""></option>' + DATA.people.map(p => '<option' + (p === sel ? ' selected' : '') + '>' + esc(p) + '</option>').join('');
