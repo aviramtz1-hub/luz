@@ -124,6 +124,22 @@
   @keyframes busyGlow { 0% { box-shadow: 0 0 0 1.5px var(--busy); background-position: 130% 0, 0 0; } 50% { box-shadow: 0 0 0 3px var(--busy), 0 0 10px var(--busy); } 100% { box-shadow: 0 0 0 1.5px var(--busy); background-position: -30% 0, 0 0; } }
   @media (prefers-reduced-motion: reduce) { .item.busy-edit, .item.busy-del { animation: none; box-shadow: 0 0 0 2px var(--busy); } }
   .empty { color: var(--muted); font-size: 13px; }
+  #splash { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; transition: opacity .25s; }
+  #splash.out { opacity: 0; pointer-events: none; }
+  #splash .dots { position: relative; width: 120px; height: 30px; --sp: 22px; direction: ltr; }
+  #splash .dots i { position: absolute; left: 0; top: 4px; width: 18px; height: 18px; border-radius: 50%; animation: hop 1.5s infinite; }
+  #splash .dots i:nth-child(1) { background: var(--accent); animation-delay: 0s; }
+  #splash .dots i:nth-child(2) { background: #f59e0b; animation-delay: -1.2s; }
+  #splash .dots i:nth-child(3) { background: #16a34a; animation-delay: -.9s; }
+  #splash .dots i:nth-child(4) { background: #db2777; animation-delay: -.6s; }
+  #splash .dots i:nth-child(5) { background: #7c3aed; animation-delay: -.3s; }
+  @keyframes hop { 0% { transform: translate(0,0); } 16% { transform: translate(var(--sp),0); } 20% { transform: translate(var(--sp),0); } 36% { transform: translate(calc(var(--sp)*2),0); } 40% { transform: translate(calc(var(--sp)*2),0); } 56% { transform: translate(calc(var(--sp)*3),0); } 60% { transform: translate(calc(var(--sp)*3),0); } 76% { transform: translate(calc(var(--sp)*4),0); } 80% { transform: translate(calc(var(--sp)*4),0); } 90% { transform: translate(calc(var(--sp)*2),-16px); } 100% { transform: translate(0,0); } }
+  #splash .sname { color: var(--muted); font-size: 15px; }
+  #busy { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9000; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 40% 100%; background-repeat: no-repeat; animation: bslide 1s linear infinite; display: none; }
+  #busyPill { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9001; background: #222; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 14px; display: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+  body.isbusy #busy, body.isbusy #busyPill { display: block; }
+  @keyframes bslide { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+
 
   dialog { border: 1px solid var(--line); border-radius: 14px; padding: 16px; width: min(440px, calc(100vw - 32px)); }
   dialog::backdrop { background: rgba(0,0,0,.35); }
@@ -229,6 +245,8 @@
 </style>
 </head>
 <body>
+<div id="splash"><div class="dots"><i></i><i></i><i></i><i></i><i></i></div><div class="sname">הלו"ז שלנו נפתח…</div></div>
+<div id="busy"></div><div id="busyPill">מעדכן…</div>
 <div class="app">
   <header>
     <h1>הלו"ז שלנו</h1>
@@ -308,7 +326,12 @@ function call1(fn, args) {
     .then(j => { if (!j.ok) throw new Error(j.error || 'שגיאה'); return j.data; });
 }
 // ניסיון חוזר אחד כשיש תקלת רשת רגעית (HTTP 0)
-async function call(fn, ...args) {
+let BUSY_N = 0, BUSY_T = null;
+function busyOn() { BUSY_N++; if (BUSY_N === 1) { clearTimeout(BUSY_T); BUSY_T = setTimeout(() => document.body.classList.add('isbusy'), 350); } }
+function busyOff() { BUSY_N = Math.max(0, BUSY_N - 1); if (!BUSY_N) { clearTimeout(BUSY_T); document.body.classList.remove('isbusy'); } }
+// כל קריאה לשרת שהמשתמש מחכה לה מציגה חיווי "מעדכן"; רענון שקט ברקע לא
+async function call(fn, ...args) { busyOn(); try { return await callQuiet(fn, ...args); } finally { busyOff(); } }
+async function callQuiet(fn, ...args) {
   try { return await call1(fn, args); }
   catch (e) {
     if (/HTTP 0|NetworkError|Failed to fetch/i.test(String((e && e.message) || e))) { await new Promise(r => setTimeout(r, 1200)); return call1(fn, args); }
@@ -403,7 +426,12 @@ const WEEK_NAMES = ['השבוע הקרוב', 'שבוע הבא', 'עוד שבוע
 const TAB_NAMES = ['השבוע', 'שבוע הבא', 'עוד שבועיים', 'עוד 3 שבועות'];
 let WEEK = 0;
 const PAST_OPEN = new Set();
+function hideSplash() { const sp = document.getElementById('splash'); if (!sp) return; sp.classList.add('out'); setTimeout(() => sp.remove(), 300); }
+function cacheKey() { return 'dc:' + K; }
+function loadCache() { try { const c = JSON.parse(localStorage.getItem(cacheKey()) || 'null'); return c && c.me === ME() && c.data && c.data.recurring ? c.data : null; } catch (e) { return null; } }
+function saveCache() { try { if (DATA && K) localStorage.setItem(cacheKey(), JSON.stringify({ me: ME(), data: DATA })); } catch (e) {} }
 function render() {
+  setTimeout(saveCache, 0);
   const start = windowStart(DATA.today);
   $('tabs').innerHTML = TAB_NAMES.map((n, i) => '<button class="tab' + (i === WEEK ? ' on' : '') + '" data-w="' + i + '">' + n + '<small><bdi dir="ltr">' + rangeLabel(addDays(start, i * 7)) + '</bdi></small></button>').join('');
   document.getElementById('weeks').innerHTML = weekHtml(WEEK);
@@ -758,7 +786,7 @@ async function refresh() {
   if (REFRESHING || document.hidden || !DATA || dlg.open) return;
   REFRESHING = true;
   try {
-    const d = await call('getData', ME());
+    const d = await callQuiet('getData', ME());
     if (JSON.stringify(d) !== JSON.stringify(DATA)) { DATA = d; render(); }
     maybeShowNew();
   } catch (e) {} finally { REFRESHING = false; }
@@ -769,18 +797,24 @@ $('btnMe').onclick = () => askWho(false);
 
 // ---------- התראות (Web Push) ----------
 function pushSupported() { return STANDALONE && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.LUZ_VAPID; }
+function pushHelp() {
+  if (Notification.permission === 'denied' || PUSH_WHY === 'denied') return 'ההתראות חסומות בטלפון. כדי לאשר: הגדרות הטלפון, אפליקציות, "הלו"ז" (או Chrome), התראות, ולהפעיל. אחר כך לחזור ל-⚙️ וללחוץ הפעלה.';
+  return 'לא הצלחתי להפעיל התראות' + (PUSH_WHY ? ' (' + PUSH_WHY.replace('err:', '') + ')' : '') + '. אפשר לנסות שוב בעוד רגע.';
+}
 function pushOn() { return pushSupported() && Notification.permission === 'granted'; }
 function vapidKey() { const s = window.LUZ_VAPID.replace(/-/g, '+').replace(/_/g, '/'); const raw = atob(s + '='.repeat((4 - s.length % 4) % 4)); return Uint8Array.from(raw, c => c.charCodeAt(0)); }
+let PUSH_WHY = '';
 async function enablePush(silent) {
   try {
     if (!pushSupported() || !ME()) return false;
-    if (Notification.permission !== 'granted') { if (silent) return false; if (await Notification.requestPermission() !== 'granted') return false; }
+    PUSH_WHY = '';
+    if (Notification.permission !== 'granted') { if (silent) return false; if (await Notification.requestPermission() !== 'granted') { PUSH_WHY = 'denied'; return false; } }
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey() });
     await call('savePush', ME(), sub.toJSON());
     return true;
-  } catch (e) { return false; }
+  } catch (e) { PUSH_WHY = 'err:' + String((e && e.message) || e).slice(0, 120); return false; }
 }
 // שואלים פעם אחת אם להפעיל התראות (בכל מכשיר)
 // שומר לשירות ההתראות את הקוד והשם, כדי שיוכל לשאול מה יש היום כשמגיעה התראה
@@ -793,7 +827,7 @@ function maybeAskPush() {
   if (asked || Notification.permission === 'denied') return;
   try { localStorage.setItem('pushAsked', '1'); } catch (e) {}
   openDlg('<h3>🔔 לקבל התראה כשיש עדכון?</h3><p>כשמישהו אחר מוסיף או משנה משהו בלו"ז, תקפוץ בטלפון הודעה "יש עדכון חדש בלו"ז". בלי פרטים ובלי רעש מיותר.</p><div class="row"><button class="btn primary" id="pYes">כן, להפעיל</button><button class="btn" id="pNo">לא עכשיו</button></div><p style="color:var(--muted);font-size:13px">אפשר לשנות אחר כך ב-⚙️.</p>');
-  $('pYes').onclick = async () => { closeDlg(); if (!(await enablePush())) showErr('ההתראות לא הופעלו. אפשר לנסות שוב ב-⚙️.'); };
+  $('pYes').onclick = async () => { closeDlg(); if (!(await enablePush())) showErr(pushHelp()); };
   $('pNo').onclick = closeDlg;
 }
 if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'refresh') refresh(); });
@@ -832,7 +866,7 @@ function settings() {
   dlg.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { try { localStorage.setItem('swipeFx', b.dataset.fx); } catch (e) {} settings(); });
   $('sMicReset').onclick = () => { try { localStorage.removeItem('micPos'); } catch (e) {} const m = $('mic'); m.style.left = m.style.top = m.style.right = m.style.bottom = ''; };
   $('sWho').onclick = () => askWho(false);
-  if ($('sPush')) $('sPush').onclick = async () => { const ok = await enablePush(); settings(); if (!ok) showErr('לא הצלחתי להפעיל התראות. אם חסמת אותן, צריך לאשר בהגדרות האתר בכרום.'); };
+  if ($('sPush')) $('sPush').onclick = async () => { const ok = await enablePush(); settings(); if (!ok) showErr(pushHelp()); };
   $('sClose').onclick = closeDlg;
 }
 $('btnSet').onclick = settings;
@@ -1278,10 +1312,13 @@ $('btnPrint').onclick = () => {
 $('weeks').addEventListener('click', e => { const b = e.target.closest('.item'); if (b) itemMenu(b.dataset.k, b.dataset.id, b.dataset.date); });
 
 if (STANDALONE && !K) {
+  hideSplash();
   document.querySelector('.app').innerHTML = '<div style="padding:32px 16px;text-align:center"><h2>הלו"ז שלנו</h2><p>הדביקו את הקוד המשפחתי (או פתחו את הקישור המלא):</p><input id="kIn" style="font-size:18px;padding:10px;width:80%;max-width:320px;direction:ltr;text-align:center"><br><br><button class="btn primary" id="kGo">כניסה</button></div>';
   document.getElementById('kGo').onclick = () => { const v = document.getElementById('kIn').value.trim(); if (v) { try { localStorage.setItem('familyCode', v); } catch (e) {} location.href = location.pathname + '?k=' + encodeURIComponent(v); } };
-} else call('getData', ME()).then(d => {
-  DATA = d; render(); updateMe();
+} else {
+  let booted = false;
+  const boot = d => {
+  DATA = d; render(); updateMe(); hideSplash();
   updateUndo(); saveCfg();
 if (!ME()) askWho(true); else { maybeShowNew(); setTimeout(maybeAskPush, 1500); }
   // קיצורי דרך מהאייקון (לחיצה ארוכה): ?a=voice / ?a=today
@@ -1298,7 +1335,16 @@ if (!ME()) askWho(true); else { maybeShowNew(); setTimeout(maybeAskPush, 1500); 
   } catch (e) {}
   const t = document.getElementById('d-' + d.today);
   if (t && window.innerWidth < 900) t.scrollIntoView({ block: 'center' });
-}).catch(e => { $('weeks').innerHTML = ''; showErr(e.message || String(e)); });
+    booted = true;
+  };
+  // פתיחה מיידית מהנתונים האחרונים שנשמרו במכשיר, ובמקביל מביאים את העדכניים
+  const c0 = loadCache(); if (c0) boot(c0);
+  callQuiet('getData', ME()).then(d => {
+    if (!booted) boot(d);
+    else if (JSON.stringify(d) !== JSON.stringify(DATA)) { DATA = d; render(); maybeShowNew(); }
+    else saveCache();
+  }).catch(e => { hideSplash(); if (!booted) { $('weeks').innerHTML = ''; } showErr(e.message || String(e)); });
+}
 </script>
 </body>
 </html>
