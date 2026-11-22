@@ -30,8 +30,10 @@ async function pushContent() {
     const cfg = await r.json(); if (!cfg.k) return generic;
     const res = await fetch(self.LUZ_API, { method: 'POST', body: JSON.stringify({ fn: 'pushText', args: [cfg.k, cfg.me || ''] }) });
     const j = await res.json(); if (!j.ok) return generic;
-    const lines = j.data.lines || [];
-    if (j.data.unseen) return { title: 'יש עדכון חדש בלו"ז', body: lines.length ? 'היום:\n' + lines.join('\n') : 'לחצו כדי לראות.', tag: 'luz-update', sticky: true };
+    const lines = j.data.lines || [], kind = j.data.kind || 'update';
+    if (kind === 'weekly') return { title: 'השבוע הקרוב בלו"ז', body: lines.join('\n'), tag: 'luz-week', sticky: false };
+    if (kind === 'remind' && lines.length) return { title: 'תזכורת', body: lines.join('\n'), tag: 'luz-remind', sticky: true };
+    if (j.data.unseen && kind === 'update') return { title: 'יש עדכון חדש בלו"ז', body: lines.length ? 'היום:\n' + lines.join('\n') : 'לחצו כדי לראות.', tag: 'luz-update', sticky: true };
     if (lines.length) return { title: 'היום בלו"ז', body: lines.join('\n'), tag: 'luz-today', sticky: false };
   } catch (e) {}
   return generic;
