@@ -126,14 +126,13 @@
   .empty { color: var(--muted); font-size: 13px; }
   #splash { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; transition: opacity .25s; }
   #splash.out { opacity: 0; pointer-events: none; }
-  #splash .dots { position: relative; width: 120px; height: 30px; --sp: 22px; direction: ltr; }
-  #splash .dots i { position: absolute; left: 0; top: 4px; width: 18px; height: 18px; border-radius: 50%; animation: hop 1.5s infinite; }
-  #splash .dots i:nth-child(1) { background: var(--accent); animation-delay: 0s; }
-  #splash .dots i:nth-child(2) { background: #f59e0b; animation-delay: -1.2s; }
-  #splash .dots i:nth-child(3) { background: #16a34a; animation-delay: -.9s; }
-  #splash .dots i:nth-child(4) { background: #db2777; animation-delay: -.6s; }
-  #splash .dots i:nth-child(5) { background: #7c3aed; animation-delay: -.3s; }
-  @keyframes hop { 0% { transform: translate(0,0); } 16% { transform: translate(var(--sp),0); } 20% { transform: translate(var(--sp),0); } 36% { transform: translate(calc(var(--sp)*2),0); } 40% { transform: translate(calc(var(--sp)*2),0); } 56% { transform: translate(calc(var(--sp)*3),0); } 60% { transform: translate(calc(var(--sp)*3),0); } 76% { transform: translate(calc(var(--sp)*4),0); } 80% { transform: translate(calc(var(--sp)*4),0); } 90% { transform: translate(calc(var(--sp)*2),-16px); } 100% { transform: translate(0,0); } }
+  #splash .dots { position: relative; width: 106px; height: 60px; direction: ltr; }
+  #splash .dots i { position: absolute; left: 0; top: 0; width: 18px; height: 18px; border-radius: 50%; will-change: transform; }
+  #splash .dots i:nth-child(1) { transform: translate(0px,0px); background: var(--accent); }
+  #splash .dots i:nth-child(2) { transform: translate(44px,0px); background: #e0709b; }
+  #splash .dots i:nth-child(3) { transform: translate(88px,0px); background: #5aa469; }
+  #splash .dots i:nth-child(4) { transform: translate(22px,42px); background: #f2b134; }
+  #splash .dots i:nth-child(5) { transform: translate(66px,42px); background: #8a4b2a; }
   #splash .sname { color: var(--muted); font-size: 15px; }
   #busy { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9000; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 40% 100%; background-repeat: no-repeat; animation: bslide 1s linear infinite; display: none; }
   #busyPill { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9001; background: #222; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 14px; display: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
@@ -426,6 +425,33 @@ const WEEK_NAMES = ['השבוע הקרוב', 'שבוע הבא', 'עוד שבוע
 const TAB_NAMES = ['השבוע', 'שבוע הבא', 'עוד שבועיים', 'עוד 3 שבועות'];
 let WEEK = 0;
 const PAST_OPEN = new Set();
+
+// מסך פתיחה: חמשת עיגולי הלוגו מחליפים מקום אחד עם השני, בלי הפסקה, תמיד בצורה אחרת מהקודמת
+(function () {
+  const dots = [...document.querySelectorAll('#splash .dots i')]; if (!dots.length) return;
+  const SP = [[0, 0], [44, 0], [88, 0], [22, 42], [66, 42]];
+  const slot = [0, 1, 2, 3, 4]; // dot -> slot
+  let last = '', cur = null, raf = 0;
+  const put = (d, x, y) => { dots[d].style.transform = 'translate(' + x + 'px,' + y + 'px)'; };
+  slot.forEach((s, d) => put(d, SP[s][0], SP[s][1]));
+  function next(now) {
+    let a, b, k; do { a = Math.floor(Math.random() * 5); b = Math.floor(Math.random() * 5); k = Math.min(a, b) + '-' + Math.max(a, b); } while (a === b || k === last);
+    last = k;
+    cur = { a, b, t0: now, dur: 550 + Math.random() * 250, h: (14 + Math.random() * 8) * (Math.random() < .5 ? -1 : 1) };
+  }
+  function tick(now) {
+    if (!document.getElementById('splash')) return;
+    if (!cur) next(now);
+    let t = Math.min(1, (now - cur.t0) / cur.dur); const e = t * t * (3 - 2 * t);
+    [[cur.a, cur.b, 1], [cur.b, cur.a, -1]].forEach(([d, to, sg]) => {
+      const [x0, y0] = SP[slot[d]], [x1, y1] = SP[slot[to]], dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, off = cur.h * sg * Math.sin(Math.PI * e);
+      put(d, x0 + dx * e - dy / L * off, y0 + dy * e + dx / L * off);
+    });
+    if (t >= 1) { const sa = slot[cur.a]; slot[cur.a] = slot[cur.b]; slot[cur.b] = sa; cur = null; next(now); cur.t0 = now; }
+    raf = requestAnimationFrame(tick);
+  }
+  raf = requestAnimationFrame(tick);
+})();
 function hideSplash() { const sp = document.getElementById('splash'); if (!sp) return; sp.classList.add('out'); setTimeout(() => sp.remove(), 300); }
 function cacheKey() { return 'dc:' + K; }
 function loadCache() { try { const c = JSON.parse(localStorage.getItem(cacheKey()) || 'null'); return c && c.me === ME() && c.data && c.data.recurring ? c.data : null; } catch (e) { return null; } }
