@@ -272,18 +272,18 @@ const K = (function(){try{var q=new URLSearchParams(location.search),u=q.get('k'
 
 // ---------- פלטות צבעים (פר משתמש, נשמר במכשיר) ----------
 const PALETTES = {
+  'כחול':   { bg: '#f6f5f2', accent: '#1f6feb', today: '#e8f0fe', star: '#b45309', 'star-bg': '#fff4e0', hol: '#6d28d9', 'hol-bg': '#f1ebff', line: '#e3e1dc' },
   'אפרסק':  { bg: '#fdf4ee', accent: '#d9714b', today: '#fde7da', star: '#a8590a', 'star-bg': '#fff1da', hol: '#a5527a', 'hol-bg': '#fbe9f1', line: '#efdfd3' },
   'חמאה':   { bg: '#fdf9ea', accent: '#b9801c', today: '#fbf0c9', star: '#a24f00', 'star-bg': '#ffedd0', hol: '#a5527a', 'hol-bg': '#fbe9f1', line: '#eee5c7' },
   'ורד':    { bg: '#fdf2f3', accent: '#c9637b', today: '#fbe5e9', star: '#a8590a', 'star-bg': '#fff1da', hol: '#8a5a2b', 'hol-bg': '#f7eadb', line: '#f0dcdf' },
   'קורל':   { bg: '#fef2ef', accent: '#d65f57', today: '#fde4df', star: '#9a5a00', 'star-bg': '#fff0d6', hol: '#a5527a', 'hol-bg': '#fbe9f1', line: '#f0dcd7' },
   'מרווה':  { bg: '#f8f7ec', accent: '#728f4f', today: '#eef2dc', star: '#a8590a', 'star-bg': '#fff1da', hol: '#a5527a', 'hol-bg': '#fbe9f1', line: '#e7e5d2' },
   'סגלגל':  { bg: '#fbf3f6', accent: '#a86a9b', today: '#f4e4ef', star: '#a8590a', 'star-bg': '#fff1da', hol: '#8a5a2b', 'hol-bg': '#f7eadb', line: '#eddde5' },
-  'קרמל':   { bg: '#fbf4ea', accent: '#a9683a', today: '#f4e6d3', star: '#8a5a00', 'star-bg': '#fff0d0', hol: '#a5527a', 'hol-bg': '#fbe9f1', line: '#eadfce' },
-  'כחול':   { bg: '#f6f5f2', accent: '#1f6feb', today: '#e8f0fe', star: '#b45309', 'star-bg': '#fff4e0', hol: '#6d28d9', 'hol-bg': '#f1ebff', line: '#e3e1dc' }
+  'קרמל':   { bg: '#fbf4ea', accent: '#a9683a', today: '#f4e6d3', star: '#8a5a00', 'star-bg': '#fff0d0', hol: '#a5527a', 'hol-bg': '#fbe9f1', line: '#eadfce' }
 };
-function palName() { try { const n = localStorage.getItem('palette'); return PALETTES[n] ? n : 'אפרסק'; } catch (e) { return 'אפרסק'; } }
+function palName() { try { const n = localStorage.getItem('palette'); return PALETTES[n] ? n : 'כחול'; } catch (e) { return 'כחול'; } }
 function applyPalette(name) {
-  const pl = PALETTES[name] || PALETTES['אפרסק'], r = document.documentElement.style;
+  const pl = PALETTES[name] || PALETTES['כחול'], r = document.documentElement.style;
   Object.keys(pl).forEach(k => r.setProperty('--' + k, pl[k]));
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = pl.accent;
 }
@@ -852,7 +852,7 @@ function startFilterTimer() { clearTimeout(FILTER_T); FILTER_AT = Date.now() + 5
 function askFilterDrop() {
   if (!FILTER || $('fToast')) return;
   const t = document.createElement('div'); t.id = 'fToast'; let n = 10;
-  t.innerHTML = '<div class="pt-q">הסינון יוסר בעוד <b id="fCnt">10</b> שניות</div><div class="pt-b"><button class="btn primary" id="fThanks">תודה</button><button class="btn" id="fKeep">השאר סינון</button></div>';
+  t.innerHTML = '<div class="pt-q">הסינון עדיין פעיל</div><div class="note" style="margin:0 0 8px">הוא יוסר אוטומטית בעוד <b id="fCnt">10</b> שניות. אפשר ללחוץ "תודה" כדי להסיר אותו עכשיו, או "השאר סינון" כדי להמשיך לראות רק את הנבחרים.</div><div class="pt-b"><button class="btn primary" id="fThanks">תודה, להסיר</button><button class="btn" id="fKeep">השאר סינון</button></div>';
   document.body.appendChild(t);
   FILTER_T2 = setInterval(() => { n--; const c = $('fCnt'); if (c) c.textContent = n; if (n <= 0) clearFilter(); }, 1000);
   $('fThanks').onclick = clearFilter;
