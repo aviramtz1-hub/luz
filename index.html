@@ -437,7 +437,7 @@ const PAST_OPEN = new Set();
   function next(now) {
     let a, b, k; do { a = Math.floor(Math.random() * 5); b = Math.floor(Math.random() * 5); k = Math.min(a, b) + '-' + Math.max(a, b); } while (a === b || k === last);
     last = k;
-    cur = { a, b, t0: now, dur: 550 + Math.random() * 250, h: (14 + Math.random() * 8) * (Math.random() < .5 ? -1 : 1) };
+    cur = { a, b, t0: now, dur: 800 + Math.random() * 300, h: (14 + Math.random() * 8) * (Math.random() < .5 ? -1 : 1) };
   }
   function tick(now) {
     if (!document.getElementById('splash')) return;
