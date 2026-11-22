@@ -452,7 +452,7 @@ const PAST_OPEN = new Set();
   }
   raf = requestAnimationFrame(tick);
 })();
-const SPLASH_MIN = 500; // מילישניות: המסך נשאר לפחות כל כך מרגע הפתיחה
+const SPLASH_MIN = 0; // מילישניות: המסך נשאר לפחות כל כך מרגע הפתיחה
 let SPLASH_HID = false;
 function hideSplash() {
   if (SPLASH_HID) return; SPLASH_HID = true;
