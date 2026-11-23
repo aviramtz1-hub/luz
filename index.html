@@ -145,10 +145,17 @@
   #splash .dots i:nth-child(4) { transform: translate(22px,42px); background: #f2b134; }
   #splash .dots i:nth-child(5) { transform: translate(66px,42px); background: #8a4b2a; }
   #splash .sname { color: var(--muted); font-size: 15px; }
-  #busy { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9000; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 40% 100%; background-repeat: no-repeat; animation: bslide 1s linear infinite; display: none; }
-  #busyPill { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9001; background: #222; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 14px; display: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
-  body.isbusy #busy, body.isbusy #busyPill { display: block; }
-  @keyframes bslide { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+  #busyDlg { border: 0; padding: 0; background: transparent; width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; overflow: hidden; outline: none; }
+  #busyDlg::backdrop { background: rgba(246,245,242,.62); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  #busyDlg .bx { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 16px; font-size: 17px; color: var(--ink); }
+  .dots { position: relative; width: 106px; height: 60px; direction: ltr; }
+  .dots i { position: absolute; left: 0; top: 0; width: 18px; height: 18px; border-radius: 50%; will-change: transform; }
+  .dots i:nth-child(1) { background: var(--accent); }
+  .dots i:nth-child(2) { background: #e0709b; }
+  .dots i:nth-child(3) { background: #5aa469; }
+  .dots i:nth-child(4) { background: #f2b134; }
+  .dots i:nth-child(5) { background: #8a4b2a; }
+  .btn.crimson { background: #a3173a; border-color: #a3173a; color: #fff; font-weight: 500; }
 
 
   dialog { border: 1px solid var(--line); border-radius: 14px; padding: 16px; width: min(440px, calc(100vw - 32px)); }
@@ -257,7 +264,7 @@
 </head>
 <body>
 <div id="splash"><div class="dots"><i></i><i></i><i></i><i></i><i></i></div><div class="sname">הלו"ז שלנו נפתח…</div></div>
-<div id="busy"></div><div id="busyPill">מעדכן…</div>
+<dialog id="busyDlg"><div class="bx"><div class="dots" id="busyDots"><i></i><i></i><i></i><i></i><i></i></div><div>מעדכן…</div></div></dialog>
 <div class="app">
   <header>
     <h1>הלו"ז שלנו</h1>
@@ -337,9 +344,21 @@ function call1(fn, args) {
     .then(j => { if (!j.ok) throw new Error(j.error || 'שגיאה'); return j.data; });
 }
 // ניסיון חוזר אחד כשיש תקלת רשת רגעית (HTTP 0)
-let BUSY_N = 0, BUSY_T = null;
-function busyOn() { BUSY_N++; if (BUSY_N === 1) { clearTimeout(BUSY_T); BUSY_T = setTimeout(() => document.body.classList.add('isbusy'), 350); } }
-function busyOff() { BUSY_N = Math.max(0, BUSY_N - 1); if (!BUSY_N) { clearTimeout(BUSY_T); document.body.classList.remove('isbusy'); } }
+let BUSY_N = 0, BUSY_T = null, BUSY_STOP = null;
+function busyShow() {
+  const d = document.getElementById('busyDlg'); if (!d || !BUSY_N) return;
+  document.body.classList.add('isbusy');
+  if (!d.open) { try { d.showModal(); } catch (e) {} }
+  if (BUSY_STOP) BUSY_STOP(); BUSY_STOP = runDots(document.getElementById('busyDots'), () => d.open);
+}
+function busyHide() {
+  document.body.classList.remove('isbusy');
+  const d = document.getElementById('busyDlg'); if (d && d.open) d.close();
+  if (BUSY_STOP) { BUSY_STOP(); BUSY_STOP = null; }
+}
+function busyOn() { BUSY_N++; if (BUSY_N === 1) { clearTimeout(BUSY_T); BUSY_T = setTimeout(busyShow, 350); } }
+function busyOff() { BUSY_N = Math.max(0, BUSY_N - 1); if (!BUSY_N) { clearTimeout(BUSY_T); busyHide(); } }
+document.getElementById('busyDlg').addEventListener('cancel', e => e.preventDefault());
 // כל קריאה לשרת שהמשתמש מחכה לה מציגה חיווי "מעדכן"; רענון שקט ברקע לא
 async function call(fn, ...args) { busyOn(); try { return await callQuiet(fn, ...args); } finally { busyOff(); } }
 async function callQuiet(fn, ...args) {
@@ -438,32 +457,33 @@ const TAB_NAMES = ['השבוע', 'שבוע הבא', 'עוד שבועיים', 'ע
 let WEEK = 0;
 const PAST_OPEN = new Set();
 
-// מסך פתיחה: חמשת עיגולי הלוגו מחליפים מקום אחד עם השני, בלי הפסקה, תמיד בצורה אחרת מהקודמת
-(function () {
-  const dots = [...document.querySelectorAll('#splash .dots i')]; if (!dots.length) return;
-  const SP = [[0, 0], [44, 0], [88, 0], [22, 42], [66, 42]];
-  const slot = [0, 1, 2, 3, 4]; // dot -> slot
-  let last = '', cur = null, raf = 0;
+// חמשת עיגולי הלוגו מחליפים מקום אחד עם השני, בלי הפסקה, תמיד בצורה אחרת מהקודמת
+const DOT_SP = [[0, 0], [44, 0], [88, 0], [22, 42], [66, 42]];
+function runDots(root, alive) {
+  const dots = [...root.querySelectorAll('i')]; if (!dots.length) return () => {};
+  const slot = [0, 1, 2, 3, 4]; let last = '', cur = null, raf = 0, stopped = false;
   const put = (d, x, y) => { dots[d].style.transform = 'translate(' + x + 'px,' + y + 'px)'; };
-  slot.forEach((s, d) => put(d, SP[s][0], SP[s][1]));
+  slot.forEach((sl, d) => put(d, DOT_SP[sl][0], DOT_SP[sl][1]));
   function next(now) {
     let a, b, k; do { a = Math.floor(Math.random() * 5); b = Math.floor(Math.random() * 5); k = Math.min(a, b) + '-' + Math.max(a, b); } while (a === b || k === last);
     last = k;
     cur = { a, b, t0: now, dur: 800 + Math.random() * 300, h: (14 + Math.random() * 8) * (Math.random() < .5 ? -1 : 1) };
   }
   function tick(now) {
-    if (!document.getElementById('splash')) return;
+    if (stopped || !alive()) return;
     if (!cur) next(now);
-    let t = Math.min(1, (now - cur.t0) / cur.dur); const e = t * t * (3 - 2 * t);
+    const t = Math.min(1, (now - cur.t0) / cur.dur), e = t * t * (3 - 2 * t);
     [[cur.a, cur.b, 1], [cur.b, cur.a, -1]].forEach(([d, to, sg]) => {
-      const [x0, y0] = SP[slot[d]], [x1, y1] = SP[slot[to]], dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, off = cur.h * sg * Math.sin(Math.PI * e);
+      const [x0, y0] = DOT_SP[slot[d]], [x1, y1] = DOT_SP[slot[to]], dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, off = cur.h * sg * Math.sin(Math.PI * e);
       put(d, x0 + dx * e - dy / L * off, y0 + dy * e + dx / L * off);
     });
-    if (t >= 1) { const sa = slot[cur.a]; slot[cur.a] = slot[cur.b]; slot[cur.b] = sa; cur = null; next(now); cur.t0 = now; }
+    if (t >= 1) { const sa = slot[cur.a]; slot[cur.a] = slot[cur.b]; slot[cur.b] = sa; cur = null; next(now); }
     raf = requestAnimationFrame(tick);
   }
   raf = requestAnimationFrame(tick);
-})();
+  return () => { stopped = true; cancelAnimationFrame(raf); };
+}
+runDots(document.getElementById('splash'), () => !!document.getElementById('splash'));
 const SPLASH_MIN = 0; // מילישניות: המסך נשאר לפחות כל כך מרגע הפתיחה
 let SPLASH_HID = false;
 function hideSplash() {
@@ -727,7 +747,7 @@ async function doConfirm() {
   const ok = await save(chosen);
   if (!ok) { closeDlg(); return; }
   $('txt').value = '';
-  showDays(dates);
+  showDays(dates, true);
 }
 
 // סימון חי על פריט שנמצא בעריכה (כתום) או במחיקה (אדום) עד שהשמירה מסתיימת
@@ -779,6 +799,7 @@ async function save(actions, isUndo) {
   try {
     DATA = await call('applyActions', actions, { me: ME(), lines: actions.map(plain).filter(String), dates: affectedDates(actions) });
     unmark(); render();
+    if (before && !isUndo) LAST_SAVED = { items: DATA.items.filter(i => i.type === 'oneoff' && !before.items.some(o => o.id === i.id)).map(i => i.id), rec: DATA.recurring.filter(r => !before.recurring.some(o => o.id === r.id)).map(r => r.id) };
     if (isUndo) undoSet(null);
     else if (before) { try { const inv = inverseOf(actions, before).concat(inverseOfAdds(actions, before, DATA)); undoSet(inv.length ? { ts: Date.now(), inv, label: actions.map(plain).filter(String).join(' · ').slice(0, 60) } : null); } catch (e) { undoSet(null); } }
     return true;
@@ -1077,21 +1098,33 @@ function dayBlock(ds) {
 }
 function wireDayItems() { dlg.querySelectorAll('.item').forEach(b => b.onclick = () => itemMenu(b.dataset.k, b.dataset.id, b.dataset.date)); }
 
-function showDay(ds, heading) {
+let LAST_SAVED = { items: [], rec: [] };
+function editSaved() {
+  const list = LAST_SAVED.items.map(id => DATA.items.find(i => i.id === id)).filter(Boolean).map(it => ({ kind: 'one', it }))
+    .concat(LAST_SAVED.rec.map(id => DATA.recurring.find(r => r.id === id)).filter(Boolean).map(it => ({ kind: 'rec', it })));
+  if (!list.length) { closeDlg(); return; }
+  if (list.length === 1) { editForm(list[0]); return; }
+  openDlg('<h3>איזה אירוע לערוך?</h3><div class="dlg-actions">' + list.map((x, i) => '<button class="btn" data-ei="' + i + '">' + line(x.it) + '</button>').join('') + '<button class="btn" id="eClose">סגירה</button></div>');
+  dlg.querySelectorAll('[data-ei]').forEach(b => b.onclick = () => editForm(list[+b.dataset.ei]));
+  $('eClose').onclick = closeDlg;
+}
+function showDay(ds, heading, post) {
   const start = windowStart(DATA.today), idx = Math.floor((new Date(ds) - new Date(start)) / 604800000);
   openDlg((heading ? '<h3>' + esc(heading) + '</h3>' : '') + '<div class="rec-list">' + dayBlock(ds) + '</div>' +
-    '<div class="row"><button class="btn primary" id="dAdd">הוספה ליום הזה</button>' +
-    (idx >= 0 && idx < 4 ? '<button class="btn" id="dGo">הצגה בשבוע</button>' : '') +
-    '<button class="btn" id="dClose">סגירה</button></div>');
+    (post ? '<div class="row"><button class="btn primary" id="dClose">סגירה</button><button class="btn crimson" id="dEdit">ערוך את האירוע</button></div>'
+      : '<div class="row"><button class="btn primary" id="dAdd">הוספה ליום הזה</button>' +
+        (idx >= 0 && idx < 4 ? '<button class="btn" id="dGo">הצגה בשבוע</button>' : '') +
+        '<button class="btn" id="dClose">סגירה</button></div>'));
   $('dClose').onclick = closeDlg;
-  $('dAdd').onclick = () => { editForm({ kind: 'one', it: null }); $('fDate').value = ds; };
+  if ($('dEdit')) $('dEdit').onclick = editSaved;
+  if ($('dAdd')) $('dAdd').onclick = () => { editForm({ kind: 'one', it: null }); $('fDate').value = ds; };
   if ($('dGo')) $('dGo').onclick = () => { closeDlg(); WEEK = idx; render(); const t = document.getElementById('d-' + ds); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
   wireDayItems();
 }
 
-function showDays(dates) {
+function showDays(dates, post) {
   if (!dates.length) return;
-  if (dates.length === 1) return showDay(dates[0], 'נשמר. כך נראה היום');
+  if (dates.length === 1) return showDay(dates[0], 'נשמר. כך נראה היום', post);
   const shown = dates.slice(0, 6);
   openDlg('<h3>נשמר. כך נראים הימים</h3><div class="rec-list">' + shown.map(dayBlock).join('') +
     (dates.length > shown.length ? '<p class="note">ועוד ' + (dates.length - shown.length) + ' ימים</p>' : '') +
