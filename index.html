@@ -92,6 +92,13 @@
   .ovl-w { display: block; margin-top: 4px; padding: 6px 10px; background: #fff1de; color: #8a3b00; border-radius: 8px; font-size: 14px; border: 1px solid #f5c690; }
   .remind { margin: 12px 0 4px; padding: 10px 12px; border-radius: 12px; background: var(--today); border: 1px solid var(--line); }
   .rm-opts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; align-items: center; }
+  details.ms { position: relative; margin-top: 2px; }
+  details.ms > summary { list-style: none; cursor: pointer; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 16px; color: var(--ink); min-height: 20px; }
+  details.ms > summary::-webkit-details-marker { display: none; }
+  details.ms > summary::after { content: ' ▾'; color: var(--muted); }
+  details.ms .ms-l { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; background: var(--card); }
+  details.ms .ms-l label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; font-size: 16px; color: var(--ink); }
+  details.ms .ms-l input { padding: 0; border: 0; width: 20px; height: 20px; accent-color: var(--accent); }
   .rm-opts label { display: inline-flex; align-items: center; gap: 5px; font-size: 15px; }
   .rm-opts input[type=radio] { width: 18px; height: 18px; accent-color: var(--accent); }
   .rm-opts select { max-width: 120px; padding: 2px 4px; }
@@ -146,6 +153,7 @@
   .dlg-actions { display: flex; flex-direction: column; gap: 8px; }
   .form { display: grid; gap: 8px; }
   .form label { display: grid; gap: 3px; font-size: 14px; color: var(--muted); }
+  .form .fl { display: grid; gap: 3px; font-size: 14px; color: var(--muted); }
   .form input, .form select { border: 1px solid var(--line); border-radius: 8px; padding: 8px; color: var(--ink); }
   .row { display: flex; gap: 8px; justify-content: flex-start; margin-top: 12px; }
   .rec-list { max-height: 60vh; overflow: auto; }
@@ -358,7 +366,7 @@ function timeKey(t) { const m = String(t || '').match(/(\d{1,2}):(\d{2})/); retu
 let FILTER = null, FILTER_AT = 0, FILTER_T = null, FILTER_T2 = null;
 function dayEntries(ds) {
   const all = dayEntriesAll(ds);
-  return FILTER ? all.filter(e => !e.person || FILTER.has(e.person)) : all;
+  return FILTER ? all.filter(e => !e.person || FILTER.has(e.person) || personsOf(e.person).some(p => FILTER.has(p))) : all;
 }
 function dayEntriesAll(ds) {
   const w = dow(ds);
@@ -601,7 +609,7 @@ function editRow(a, i) {
   const wd = '<select class="eDay">' + DAYS.map((d, k) => '<option value="' + k + '"' + (k === a.weekday ? ' selected' : '') + '>' + d + '</option>').join('') + '</select>';
   const label = a.type === 'add' ? '★ חד־פעמי' : '↻ קבוע כל שבוע';
   return '<div class="erow" data-row="' + i + '"><div class="full lab">' + label + '</div>' +
-    '<select class="eWho">' + peopleOptions(a.person).replace('<option value=""></option>', '<option value="">מי? (לא חובה)</option>') + '</select>' +
+    whoPicker('eWho', a.person, 'מי? (לא חובה)') +
     '<input class="eTitle" value="' + esc(a.title) + '" placeholder="מה">' +
     '<input class="eTime" value="' + esc(a.time) + '" placeholder="שעה">' +
     (a.type === 'add' ? '<input class="eDate" type="date" value="' + esc(a.date) + '">' : wd) + '</div>';
@@ -615,13 +623,17 @@ function mlabel(m) {
   return Math.floor(m / 60) + ' ש׳ ו-' + (m % 60) + ' דק׳';
 }
 let RM_VAL = 0;
+const serverV5 = () => !!(DATA && DATA.remindV5);
 function remindHtml() {
-  const std = RM_VAL === 30 || RM_VAL === 60 || RM_VAL === 0;
+  const std = [0, 30, 60].includes(RM_VAL) || (serverV5() && [-1, 1440, 2880].includes(RM_VAL));
   const opts = Array.from({ length: 96 }, (_, i) => (i + 1) * 15).map(m => '<option value="' + m + '"' + (!std && m === RM_VAL ? ' selected' : '') + '>' + mlabel(m) + '</option>').join('');
   return '<div class="remind"><b>🔔 תזכורת לפני האירוע</b><div class="rm-opts">' +
     '<label><input type="radio" name="rm" value="0"' + (RM_VAL === 0 ? ' checked' : '') + '> ללא</label>' +
     '<label><input type="radio" name="rm" value="30"' + (RM_VAL === 30 ? ' checked' : '') + '> חצי שעה</label>' +
     '<label><input type="radio" name="rm" value="60"' + (RM_VAL === 60 ? ' checked' : '') + '> שעה</label>' +
+    (serverV5() ? '<label><input type="radio" name="rm" value="-1"' + (RM_VAL === -1 ? ' checked' : '') + '> ערב לפני (21:00)</label>' +
+      '<label><input type="radio" name="rm" value="1440"' + (RM_VAL === 1440 ? ' checked' : '') + '> יום לפני</label>' +
+      '<label><input type="radio" name="rm" value="2880"' + (RM_VAL === 2880 ? ' checked' : '') + '> יומיים לפני</label>' : '') +
     '<label><input type="radio" name="rm" value="c"' + (!std ? ' checked' : '') + '> אחר <select id="rmSel">' + opts + '</select></label></div></div>';
 }
 function wireRemind() {
@@ -633,6 +645,8 @@ function readRemind() {
   RM_VAL = r.value === 'c' ? +$('rmSel').value : +r.value; return RM_VAL;
 }
 const hasStart = a => !!span(a.time);
+// "ערב לפני" (-1) לא תלוי בשעת האירוע; שאר התזכורות דורשות שעת התחלה
+const rmOk = (a, r) => !!r && (r === -1 || hasStart(a));
 
 function renderConfirm() {
   const acts = PENDING, res = LASTRES;
@@ -641,7 +655,7 @@ function renderConfirm() {
     return '<div class="crow"><input type="checkbox" data-i="' + i + '"' + (CHK[i] ? ' checked' : '') + '><div class="cbody">' +
       (editable ? editRow(a, i) : '<span>' + describe(a) + dupHtml(a, acts) + ovlHtml(a) + '</span>') + '</div></div>';
   }).join('');
-  const showRm = remindOn() && acts.some(a => (a.type === 'add' || a.type === 'add_recurring') && hasStart(a));
+  const showRm = remindOn() && acts.some(a => (a.type === 'add' || a.type === 'add_recurring'));
   openDlg('<h3>לאשר את זה?</h3>' + (res.note ? '<p class="note">' + esc(res.note) + '</p>' : '') + rows + (showRm ? remindHtml() : '') + msTag(res) +
     '<div id="cErr" class="err" hidden></div>' +
     '<div class="row"><button class="btn primary" id="cOk">' + (EDITING ? 'שמירה ואישור' : 'אישור') + '</button>' +
@@ -659,7 +673,7 @@ function collectEdits() {
     const b = Object.assign({}, a);
     const row = dlg.querySelector('[data-row="' + i + '"]');
     if (!row) return b;
-    b.person = row.querySelector('.eWho').value;
+    b.person = readWho(row);
     b.title = row.querySelector('.eTitle').value.trim();
     b.time = row.querySelector('.eTime').value.trim();
     const d = row.querySelector('.eDate'); if (d) b.date = d.value;
@@ -697,7 +711,7 @@ function affectedDates(chosen) {
 async function doConfirm() {
   const all = EDITING ? collectEdits() : PENDING;
   const rmv = readRemind();
-  const chosen = all.filter((a, i) => CHK[i]).map(a => (a.type === 'add' || a.type === 'add_recurring') && rmv && hasStart(a) ? Object.assign({}, a, { remind: rmv }) : a);
+  const chosen = all.filter((a, i) => CHK[i]).map(a => (a.type === 'add' || a.type === 'add_recurring') && rmOk(a, rmv) ? Object.assign({}, a, { remind: rmv }) : a);
   if (chosen.some(a => !valid(a))) { const e = $('cErr'); e.hidden = false; e.textContent = 'חסר תיאור או תאריך באחד הפריטים'; return; }
   if (!chosen.length) { closeDlg(); return; }
   const dates = affectedDates(chosen);
@@ -998,6 +1012,23 @@ function showPalToast() {
   PAL_T2 = setTimeout(done, 30000);
 }
 
+// ---- בחירת כמה אנשים (תיבות סימון בתוך רשימה נפתחת) ----
+function personsOf(str) {
+  const toks = String(str || '').split(/\s*,\s*|\s+ו(?=\S)/).map(x => x.trim()).filter(Boolean);
+  const known = DATA.people.filter(p => toks.includes(p));
+  return known.length || !str ? known : [String(str)];
+}
+function joinPeople(arr) { return arr.length < 2 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' ו' + arr[arr.length - 1]; }
+function whoPicker(cls, sel, ph) {
+  const cur = personsOf(sel), all = DATA.people.concat(cur.filter(p => !DATA.people.includes(p)));
+  return '<details class="ms ' + cls + '" data-ph="' + esc(ph) + '"><summary>' + esc(joinPeople(cur) || ph) + '</summary><div class="ms-l">' +
+    all.map(p => '<label><input type="checkbox" value="' + esc(p) + '"' + (cur.includes(p) ? ' checked' : '') + '> ' + esc(p) + '</label>').join('') + '</div></details>';
+}
+function readWho(root) { const el = root.querySelector('.ms'); return el ? joinPeople([...el.querySelectorAll('input:checked')].map(i => i.value)) : ''; }
+document.addEventListener('change', e => {
+  const ms = e.target.closest && e.target.closest('.ms'); if (!ms) return;
+  ms.querySelector('summary').textContent = joinPeople([...ms.querySelectorAll('input:checked')].map(i => i.value)) || ms.dataset.ph;
+});
 function peopleOptions(sel) {
   return '<option value=""></option>' + DATA.people.map(p => '<option' + (p === sel ? ' selected' : '') + '>' + esc(p) + '</option>').join('');
 }
@@ -1065,7 +1096,7 @@ function editForm({ kind, it }) {
   it = it || { person: '', title: '', time: '', date: DATA.today, weekday: dow(DATA.today) };
   openDlg('<h3>' + (isNew ? 'הוספה ידנית' : 'עריכה') + '</h3><div class="form">' +
     (isNew ? '<label>סוג<select id="fKind"><option value="one">חד־פעמי</option><option value="rec">קבוע כל שבוע</option></select></label>' : '') +
-    '<label>מי<select id="fWho">' + peopleOptions(it.person) + '</select></label>' +
+    '<div class="fl">מי' + whoPicker('fWho', it.person, 'בחירה (לא חובה)') + '</div>' +
     '<label>מה<input id="fTitle" value="' + esc(it.title) + '"></label>' +
     '<label>שעה<input id="fTime" value="' + esc(it.time) + '" placeholder="17:00 או 16:30-17:15"></label>' +
     '<label id="lDate">תאריך<input id="fDate" type="date" value="' + esc(it.date || DATA.today) + '"></label>' +
@@ -1077,8 +1108,8 @@ function editForm({ kind, it }) {
   $('fDate').onchange = () => { if ($('fDate').value) $('fDay').value = dow($('fDate').value); };
   $('fCancel').onclick = closeDlg;
   $('fSave').onclick = async () => {
-    const v = { person: $('fWho').value, title: $('fTitle').value.trim(), time: $('fTime').value.trim() };
-    if (isNew && remindOn()) { const r = readRemind(); if (r && span(v.time)) v.remind = r; }
+    const v = { person: readWho(dlg), title: $('fTitle').value.trim(), time: $('fTime').value.trim() };
+    if (isNew && remindOn()) { const r = readRemind(); if (r && (r === -1 || span(v.time))) v.remind = r; }
     if (!v.title) { $('fTitle').focus(); return; }
     const k2 = kindNow();
     if (isNew) {
