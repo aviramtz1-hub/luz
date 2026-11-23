@@ -359,7 +359,14 @@ function busyHide() {
   const d = document.getElementById('busyDlg'); if (d && d.open) d.close();
   if (BUSY_STOP) { BUSY_STOP(); BUSY_STOP = null; }
 }
-function busyOn() { BUSY_N++; if (BUSY_N === 1) { clearTimeout(BUSY_T); BUSY_T = setTimeout(busyShow, 350); } }
+function busyOn(now) { BUSY_N++; if (BUSY_N === 1) { clearTimeout(BUSY_T); if (now) busyShow(); else BUSY_T = setTimeout(busyShow, 350); } }
+// מיזוג נתוני היום ומחר (טעינה מהירה) לתוך מה שכבר מוצג
+function mergeLight(l) {
+  if (!DATA) return;
+  const dates = new Set(l.dates || [l.today]);
+  DATA.today = l.today; DATA.recurring = l.recurring;
+  DATA.items = DATA.items.filter(i => !dates.has(i.date)).concat(l.items);
+}
 function busyOff() { BUSY_N = Math.max(0, BUSY_N - 1); if (!BUSY_N) { clearTimeout(BUSY_T); busyHide(); } }
 document.getElementById('busyDlg').addEventListener('cancel', e => e.preventDefault());
 // כל קריאה לשרת שהמשתמש מחכה לה מציגה חיווי "מעדכן"; רענון שקט ברקע לא
@@ -490,7 +497,6 @@ function runDots(root, alive) {
 runDots(document.getElementById('splash'), () => !!document.getElementById('splash'));
 const SPLASH_MIN = 0; // מילישניות: המסך נשאר לפחות כל כך מרגע הפתיחה
 let SPLASH_HID = false;
-function splashWait() { try { return localStorage.getItem('splashWait') === '1'; } catch (e) { return false; } }
 function hideSplash() {
   if (SPLASH_HID) return; SPLASH_HID = true;
   setTimeout(() => { const sp = document.getElementById('splash'); if (!sp) return; sp.classList.add('out'); setTimeout(() => sp.remove(), 300); }, Math.max(0, SPLASH_MIN - performance.now()));
@@ -933,7 +939,6 @@ function settings() {
   openDlg('<h3>הגדרות</h3><p style="color:var(--muted);margin-top:0">חלות על המכשיר הזה בלבד.</p>' +
     '<b>גודל המיקרופון</b><div class="opt">' + Object.keys(MIC_SIZES).map(k => '<button class="btn' + (MIC_SIZES[k] === cur ? ' on' : '') + '" data-ms="' + MIC_SIZES[k] + '">' + k + '</button>').join('') + '</div>' +
     '<b>צבעים</b><div class="opt pal">' + Object.keys(PALETTES).map(n => '<button class="sw' + (n === palName() ? ' on' : '') + '" data-pal="' + n + '" aria-label="' + n + '"><i style="background:' + PALETTES[n].accent + '"></i><span>' + n + '</span></button>').join('') + '</div>' +
-    '<b>מסך הפתיחה</b><div class="opt"><button class="btn' + (!splashWait() ? ' on' : '') + '" data-sw="0">מיידי (מהנתונים השמורים)</button><button class="btn' + (splashWait() ? ' on' : '') + '" data-sw="1">עד שמגיעים נתונים עדכניים</button></div>' +
     '<b>סגנון ההחלקה בין שבועות</b><div class="opt"><button class="btn' + (swipeFx() === 'blur' ? ' on' : '') + '" data-fx="blur">טשטוש</button><button class="btn' + (swipeFx() === 'carousel' ? ' on' : '') + '" data-fx="carousel">קרוסלה</button></div>' +
     '<b>תזכורת לפני אירוע</b><div class="opt"><button class="btn' + (remindOn() ? ' on' : '') + '" data-rm="1">מופעלת</button><button class="btn' + (!remindOn() ? ' on' : '') + '" data-rm="0">כבויה</button></div><p class="note" style="margin:-8px 0 12px">כשמופעלת, בהוספת אירוע עם שעה אפשר לבחור תזכורת.</p>' +
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
@@ -943,7 +948,6 @@ function settings() {
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
   dlg.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { try { localStorage.setItem('remindOn', b.dataset.rm); } catch (e) {} settings(); });
-  dlg.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => { try { localStorage.setItem('splashWait', b.dataset.sw); } catch (e) {} settings(); });
   dlg.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { try { localStorage.setItem('swipeFx', b.dataset.fx); } catch (e) {} settings(); });
   $('sMicReset').onclick = () => { try { localStorage.removeItem('micPos'); } catch (e) {} const m = $('mic'); m.style.left = m.style.top = m.style.right = m.style.bottom = ''; };
   $('sWho').onclick = () => askWho(false);
@@ -1455,34 +1459,45 @@ if (STANDALONE && !K) {
   document.querySelector('.app').innerHTML = '<div style="padding:32px 16px;text-align:center"><h2>הלו"ז שלנו</h2><p>הדביקו את הקוד המשפחתי (או פתחו את הקישור המלא):</p><input id="kIn" style="font-size:18px;padding:10px;width:80%;max-width:320px;direction:ltr;text-align:center"><br><br><button class="btn primary" id="kGo">כניסה</button></div>';
   document.getElementById('kGo').onclick = () => { const v = document.getElementById('kIn').value.trim(); if (v) { try { localStorage.setItem('familyCode', v); } catch (e) {} location.href = location.pathname + '?k=' + encodeURIComponent(v); } };
 } else {
-  let booted = false;
-  const boot = d => {
-  DATA = d; render(); updateMe(); hideSplash();
-  updateUndo(); saveCfg();
-if (!ME()) askWho(true); else { maybeShowNew(); setTimeout(maybeAskPush, 1500); }
-  // קיצורי דרך מהאייקון (לחיצה ארוכה): ?a=voice / ?a=today
-  try {
-    const act = new URLSearchParams(location.search).get('a');
-    if (act) {
-      history.replaceState(null, '', location.pathname + location.search.replace(/[?&]a=[^&]*/, '').replace(/^&/, '?'));
-      if (ME() && !dlg.open) {
-        if (act === 'today') showDay(DATA.today);
-        else if (act === 'voice') setTimeout(toggleMic, 300);
-        else if (act === 'share') receiveShare();
-      }
-    }
-  } catch (e) {}
-  const t = document.getElementById('d-' + d.today);
-  if (t && window.innerWidth < 900) t.scrollIntoView({ block: 'center' });
-    booted = true;
+  let booted = false, post = false;
+  const localToday = () => { try { return new Date().toLocaleDateString('sv'); } catch (e) { return ''; } };
+  const first = (d, cached) => {
+    if (cached) { const lt = localToday(); if (lt && lt > d.today) d.today = lt; }
+    DATA = d; render(); updateMe(); hideSplash(); updateUndo(); saveCfg(); booted = true;
   };
-  // פתיחה מיידית מהנתונים האחרונים שנשמרו במכשיר, ובמקביל מביאים את העדכניים
-  const c0 = splashWait() ? null : loadCache(); if (c0) boot(c0);
-  callQuiet('getData', ME()).then(d => {
-    if (!booted) boot(d);
+  // מה שרץ פעם אחת, אחרי שהנתונים של היום עדכניים
+  const after = () => {
+    if (post) return; post = true;
+    if (!ME()) askWho(true); else { maybeShowNew(); setTimeout(maybeAskPush, 1500); }
+    // קיצורי דרך מהאייקון (לחיצה ארוכה): ?a=voice / ?a=today
+    try {
+      const act = new URLSearchParams(location.search).get('a');
+      if (act) {
+        history.replaceState(null, '', location.pathname + location.search.replace(/[?&]a=[^&]*/, '').replace(/^&/, '?'));
+        if (ME() && !dlg.open) {
+          if (act === 'today') showDay(DATA.today);
+          else if (act === 'voice') setTimeout(toggleMic, 300);
+          else if (act === 'share') receiveShare();
+        }
+      }
+    } catch (e) {}
+    const t = document.getElementById('d-' + DATA.today);
+    if (t && window.innerWidth < 900) t.scrollIntoView({ block: 'center' });
+  };
+  // שלב ב: כל שאר הנתונים (שבועות הבאים, ימי הולדת, עדכונים)
+  const full = () => callQuiet('getData', ME()).then(d => {
+    if (!booted) { first(d); after(); }
     else if (JSON.stringify(d) !== JSON.stringify(DATA)) { DATA = d; render(); maybeShowNew(); }
-    else saveCache();
+    else { saveCache(); maybeShowNew(); }
   }).catch(e => { hideSplash(); if (!booted) { $('weeks').innerHTML = ''; } showErr(e.message || String(e)); });
+  const c0 = loadCache();
+  if (c0) {
+    // שלב 0: מציגים מיד את מה ששמור, עם טשטוש קל ועיגולים בזמן שמביאים את היום ומחר
+    first(c0, true); busyOn(true);
+    callQuiet('getToday', ME()).then(l => {
+      if (l && l.recurring && l.items) { mergeLight(l); render(); }
+    }).catch(() => {}).then(() => { busyOff(); after(); full(); });
+  } else full();
 }
 </script>
 </body>
