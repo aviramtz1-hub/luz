@@ -6,12 +6,11 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#1f6feb">
-<script src="config.js"></script>
 <script>if('serviceWorker' in navigator) addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
   :root {
     --bg: #f6f5f2; --card: #ffffff; --ink: #1d1f23; --muted: #6b6f76; --line: #e3e1dc;
@@ -144,6 +143,9 @@
   #splash .dots i:nth-child(3) { transform: translate(88px,0px); background: #5aa469; }
   #splash .dots i:nth-child(4) { transform: translate(22px,42px); background: #f2b134; }
   #splash .dots i:nth-child(5) { transform: translate(66px,42px); background: #8a4b2a; }
+  #splash .dots.pre i { animation: hop 3s ease-in-out infinite; }
+  #splash .dots.pre i:nth-child(1) { animation-delay: 0s; } #splash .dots.pre i:nth-child(2) { animation-delay: -2.4s; } #splash .dots.pre i:nth-child(3) { animation-delay: -1.8s; } #splash .dots.pre i:nth-child(4) { animation-delay: -1.2s; } #splash .dots.pre i:nth-child(5) { animation-delay: -.6s; }
+  @keyframes hop { 0% { transform: translate(0,0); } 16% { transform: translate(44px,0); } 20% { transform: translate(44px,0); } 36% { transform: translate(88px,0); } 40% { transform: translate(88px,0); } 56% { transform: translate(22px,42px); } 60% { transform: translate(22px,42px); } 76% { transform: translate(66px,42px); } 80% { transform: translate(66px,42px); } 90% { transform: translate(44px,-16px); } 100% { transform: translate(0,0); } }
   #splash .sname { color: var(--muted); font-size: 15px; }
   #busyDlg { border: 0; padding: 0; background: transparent; width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; overflow: hidden; outline: none; }
   #busyDlg::backdrop { background: rgba(246,245,242,.62); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
@@ -263,7 +265,7 @@
 </style>
 </head>
 <body>
-<div id="splash"><div class="dots"><i></i><i></i><i></i><i></i><i></i></div><div class="sname">הלו"ז שלנו נפתח…</div></div>
+<div id="splash"><div class="dots pre"><i></i><i></i><i></i><i></i><i></i></div><div class="sname">הלו"ז שלנו נפתח…</div></div>
 <dialog id="busyDlg"><div class="bx"><div class="dots" id="busyDots"><i></i><i></i><i></i><i></i><i></i></div><div>מעדכן…</div></div></dialog>
 <div class="app">
   <header>
@@ -303,6 +305,7 @@
 
 <dialog id="dlg"></dialog>
 
+<script src="config.js"></script>
 <script>
 const K = (function(){try{var q=new URLSearchParams(location.search),u=q.get('k');if(u){localStorage.setItem('familyCode',u);q.delete('k');var rest=q.toString();history.replaceState(null,'',location.pathname+(rest?'?'+rest:'')+location.hash);return u;}return localStorage.getItem('familyCode')||'';}catch(e){return '';}})();
 
@@ -483,6 +486,7 @@ function runDots(root, alive) {
   raf = requestAnimationFrame(tick);
   return () => { stopped = true; cancelAnimationFrame(raf); };
 }
+{ const sd = document.querySelector('#splash .dots'); if (sd) sd.classList.remove('pre'); }
 runDots(document.getElementById('splash'), () => !!document.getElementById('splash'));
 const SPLASH_MIN = 0; // מילישניות: המסך נשאר לפחות כל כך מרגע הפתיחה
 let SPLASH_HID = false;
@@ -886,7 +890,7 @@ async function enablePush(silent) {
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey() });
-    await call('savePush', ME(), sub.toJSON());
+    await callQuiet('savePush', ME(), sub.toJSON());
     return true;
   } catch (e) { PUSH_WHY = 'err:' + String((e && e.message) || e).slice(0, 120); return false; }
 }
