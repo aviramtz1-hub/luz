@@ -808,7 +808,9 @@ async function save(actions, isUndo) {
   const before = DATA ? JSON.parse(JSON.stringify(DATA)) : null;
   const unmark = markBusy(actions);
   try {
-    DATA = await call('applyActions', actions, { me: ME(), lines: actions.map(plain).filter(String), dates: affectedDates(actions) });
+    // מחיקה, ביטול ועריכה כבר מציגים חיווי על הפריט עצמו, אז בלי מסך הטשטוש
+    const quiet = actions.every(x => ['delete_item', 'delete_recurring', 'edit_item', 'edit_recurring', 'cancel', 'uncancel'].includes(x.type));
+    DATA = await (quiet ? callQuiet : call)('applyActions', actions, { me: ME(), lines: actions.map(plain).filter(String), dates: affectedDates(actions) });
     unmark(); render();
     if (before && !isUndo) LAST_SAVED = { items: DATA.items.filter(i => i.type === 'oneoff' && !before.items.some(o => o.id === i.id)).map(i => i.id), rec: DATA.recurring.filter(r => !before.recurring.some(o => o.id === r.id)).map(r => r.id) };
     if (isUndo) undoSet(null);
