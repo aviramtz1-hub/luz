@@ -1112,9 +1112,7 @@ function showDay(ds, heading, post) {
   const start = windowStart(DATA.today), idx = Math.floor((new Date(ds) - new Date(start)) / 604800000);
   openDlg((heading ? '<h3>' + esc(heading) + '</h3>' : '') + '<div class="rec-list">' + dayBlock(ds) + '</div>' +
     (post ? '<div class="row"><button class="btn primary" id="dClose">סגירה</button><button class="btn crimson" id="dEdit">ערוך את האירוע</button></div>'
-      : '<div class="row"><button class="btn primary" id="dAdd">הוספה ליום הזה</button>' +
-        (idx >= 0 && idx < 4 ? '<button class="btn" id="dGo">הצגה בשבוע</button>' : '') +
-        '<button class="btn" id="dClose">סגירה</button></div>'));
+      : '<div class="row"><button class="btn primary" id="dClose">סגירה</button><button class="btn primary" id="dAdd">הוספה ליום הזה</button></div>'));
   $('dClose').onclick = closeDlg;
   if ($('dEdit')) $('dEdit').onclick = editSaved;
   if ($('dAdd')) $('dAdd').onclick = () => { editForm({ kind: 'one', it: null }); $('fDate').value = ds; };
