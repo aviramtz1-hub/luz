@@ -91,12 +91,16 @@
   .ovl.soft { background: transparent; color: var(--muted); border-color: var(--line); font-weight: 500; }
   .ovl-w { display: block; margin-top: 4px; padding: 6px 10px; background: #fff1de; color: #8a3b00; border-radius: 8px; font-size: 14px; border: 1px solid #f5c690; }
   .remind { margin: 12px 0 4px; padding: 10px 12px; border-radius: 12px; background: var(--today); border: 1px solid var(--line); }
+  .rm-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .rm-head label { display: inline-flex; align-items: center; gap: 5px; font-size: 15px; }
+  .rm-head input[type=radio] { width: 18px; height: 18px; accent-color: var(--accent); }
   .rm-opts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; align-items: center; }
   details.ms { position: relative; margin-top: 2px; }
   details.ms > summary { list-style: none; cursor: pointer; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 16px; color: var(--ink); min-height: 20px; }
   details.ms > summary::-webkit-details-marker { display: none; }
   details.ms > summary::after { content: ' ▾'; color: var(--muted); }
   details.ms .ms-l { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; background: var(--card); }
+  details.ms .ms-l label.fam { flex-basis: 100%; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
   details.ms .ms-l label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; font-size: 16px; color: var(--ink); }
   details.ms .ms-l input { padding: 0; border: 0; width: 20px; height: 20px; accent-color: var(--accent); }
   .rm-opts label { display: inline-flex; align-items: center; gap: 5px; font-size: 15px; }
@@ -584,7 +588,7 @@ function valid(a) {
   return false;
 }
 
-let CHK = [], EDITING = false, LASTRES = null;
+let CHK = [], EDITING = false, LASTRES = null, NOWHO_OK = false;
 
 function dupHtml(a, acts) { return isDuplicate(a, acts) ? '<span class="dup">נראה שזה כבר רשום באותו יום</span>' : ''; }
 
@@ -593,7 +597,7 @@ function ovlHtml(a) { const c = clashesFor(a); return c.length ? '<span class="o
 
 function showConfirm(res) {
   const acts = (res.actions || []).filter(valid);
-  PENDING = acts; LASTRES = res; EDITING = false; CHK = acts.map(() => true);
+  PENDING = acts; LASTRES = res; EDITING = false; RM_VAL = 0; NOWHO_OK = false; CHK = acts.map(() => true);
   if (!acts.length) {
     const msg = res.answer ? '<div class="answer">' + esc(res.answer).replace(/\n/g, '<br>') + '</div>'
                            : '<p class="note">' + esc(res.note || 'לא מצאתי מה להוסיף. אפשר לנסח שוב?') + '</p>';
@@ -627,11 +631,11 @@ const serverV5 = () => !!(DATA && DATA.remindV5);
 function remindHtml() {
   const std = [0, 30, 60].includes(RM_VAL) || (serverV5() && [-1, 1440, 2880].includes(RM_VAL));
   const opts = Array.from({ length: 96 }, (_, i) => (i + 1) * 15).map(m => '<option value="' + m + '"' + (!std && m === RM_VAL ? ' selected' : '') + '>' + mlabel(m) + '</option>').join('');
-  return '<div class="remind"><b>🔔 תזכורת לפני האירוע</b><div class="rm-opts">' +
-    '<label><input type="radio" name="rm" value="0"' + (RM_VAL === 0 ? ' checked' : '') + '> ללא</label>' +
+  return '<div class="remind"><div class="rm-head"><b>🔔 תזכורת לפני האירוע</b>' +
+    '<label><input type="radio" name="rm" value="0"' + (RM_VAL === 0 ? ' checked' : '') + '> ללא</label></div><div class="rm-opts">' +
     '<label><input type="radio" name="rm" value="30"' + (RM_VAL === 30 ? ' checked' : '') + '> חצי שעה</label>' +
     '<label><input type="radio" name="rm" value="60"' + (RM_VAL === 60 ? ' checked' : '') + '> שעה</label>' +
-    (serverV5() ? '<label><input type="radio" name="rm" value="-1"' + (RM_VAL === -1 ? ' checked' : '') + '> ערב לפני (21:00)</label>' +
+    (serverV5() ? '<label><input type="radio" name="rm" value="-1"' + (RM_VAL === -1 ? ' checked' : '') + '> ערב לפני (22:00)</label>' +
       '<label><input type="radio" name="rm" value="1440"' + (RM_VAL === 1440 ? ' checked' : '') + '> יום לפני</label>' +
       '<label><input type="radio" name="rm" value="2880"' + (RM_VAL === 2880 ? ' checked' : '') + '> יומיים לפני</label>' : '') +
     '<label><input type="radio" name="rm" value="c"' + (!std ? ' checked' : '') + '> אחר <select id="rmSel">' + opts + '</select></label></div></div>';
@@ -662,9 +666,9 @@ function renderConfirm() {
     (EDITING ? '' : '<button class="btn" id="cEdit">עריכה</button>') +
     '<button class="btn" id="cNo">ביטול</button></div>');
   wireRemind();
-  dlg.querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = () => { CHK[+c.dataset.i] = c.checked; });
+  dlg.querySelectorAll('.crow > input[type=checkbox]').forEach(c => c.onchange = () => { CHK[+c.dataset.i] = c.checked; });
   $('cNo').onclick = closeDlg;
-  if ($('cEdit')) $('cEdit').onclick = () => { EDITING = true; renderConfirm(); };
+  if ($('cEdit')) $('cEdit').onclick = () => { readRemind(); EDITING = true; renderConfirm(); };
   $('cOk').onclick = doConfirm;
 }
 
@@ -712,6 +716,10 @@ async function doConfirm() {
   const all = EDITING ? collectEdits() : PENDING;
   const rmv = readRemind();
   const chosen = all.filter((a, i) => CHK[i]).map(a => (a.type === 'add' || a.type === 'add_recurring') && rmOk(a, rmv) ? Object.assign({}, a, { remind: rmv }) : a);
+  if (!NOWHO_OK && chosen.some(a => (a.type === 'add' || a.type === 'add_recurring') && !a.person)) {
+    if (await askNoWho() === 'add') { EDITING = true; renderConfirm(); openFirstWho(dlg); return; }
+    NOWHO_OK = true;
+  }
   if (chosen.some(a => !valid(a))) { const e = $('cErr'); e.hidden = false; e.textContent = 'חסר תיאור או תאריך באחד הפריטים'; return; }
   if (!chosen.length) { closeDlg(); return; }
   const dates = affectedDates(chosen);
@@ -1013,7 +1021,25 @@ function showPalToast() {
 }
 
 // ---- בחירת כמה אנשים (תיבות סימון בתוך רשימה נפתחת) ----
+const FAMILY = 'משפחת צור';
+// הודעה קופצת כשלא סימנו משתתף: 'תודה' ממשיך כרגיל, 'להוסיף' מחזיר לבחירת משתתפים
+function askNoWho() {
+  return new Promise(res => {
+    const d = document.createElement('dialog'); d.className = 'nowho';
+    d.innerHTML = '<p style="font-size:18px;margin:4px 0 14px">לא סימנת משתתף</p><div class="row"><button class="btn" id="nwThanks">תודה</button><button class="btn primary" id="nwAdd">להוסיף</button></div>';
+    document.body.appendChild(d); d.showModal();
+    const done = v => { d.close(); d.remove(); res(v); };
+    d.querySelector('#nwThanks').onclick = () => done('thanks');
+    d.querySelector('#nwAdd').onclick = () => done('add');
+    d.addEventListener('cancel', () => { d.remove(); res('add'); });
+  });
+}
+function openFirstWho(root) {
+  const el = [...root.querySelectorAll('details.ms')].find(x => !msValue(x)) || root.querySelector('details.ms');
+  if (el) { el.open = true; el.scrollIntoView({ block: 'center' }); }
+}
 function personsOf(str) {
+  if (str === FAMILY) return DATA.people.slice();
   const toks = String(str || '').split(/\s*,\s*|\s+ו(?=\S)/).map(x => x.trim()).filter(Boolean);
   const known = DATA.people.filter(p => toks.includes(p));
   return known.length || !str ? known : [String(str)];
@@ -1021,13 +1047,22 @@ function personsOf(str) {
 function joinPeople(arr) { return arr.length < 2 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' ו' + arr[arr.length - 1]; }
 function whoPicker(cls, sel, ph) {
   const cur = personsOf(sel), all = DATA.people.concat(cur.filter(p => !DATA.people.includes(p)));
-  return '<details class="ms ' + cls + '" data-ph="' + esc(ph) + '"><summary>' + esc(joinPeople(cur) || ph) + '</summary><div class="ms-l">' +
+  const fam = sel === FAMILY;
+  return '<details class="ms ' + cls + '" data-ph="' + esc(ph) + '"><summary>' + esc(fam ? FAMILY : joinPeople(cur) || ph) + '</summary><div class="ms-l">' +
+    '<label class="fam"><input type="checkbox" value="__fam"' + (fam ? ' checked' : '') + '> <b>' + FAMILY + '</b> (כולם)</label>' +
     all.map(p => '<label><input type="checkbox" value="' + esc(p) + '"' + (cur.includes(p) ? ' checked' : '') + '> ' + esc(p) + '</label>').join('') + '</div></details>';
 }
-function readWho(root) { const el = root.querySelector('.ms'); return el ? joinPeople([...el.querySelectorAll('input:checked')].map(i => i.value)) : ''; }
+function msValue(ms) {
+  const boxes = [...ms.querySelectorAll('input:not([value="__fam"])')], on = boxes.filter(i => i.checked).map(i => i.value);
+  return boxes.length && on.length === boxes.length ? FAMILY : joinPeople(on);
+}
+function readWho(root) { const el = root.querySelector('.ms'); return el ? msValue(el) : ''; }
 document.addEventListener('change', e => {
   const ms = e.target.closest && e.target.closest('.ms'); if (!ms) return;
-  ms.querySelector('summary').textContent = joinPeople([...ms.querySelectorAll('input:checked')].map(i => i.value)) || ms.dataset.ph;
+  const boxes = [...ms.querySelectorAll('input:not([value="__fam"])')], fam = ms.querySelector('input[value="__fam"]');
+  if (e.target === fam) boxes.forEach(i => { i.checked = fam.checked; });
+  else fam.checked = boxes.length > 0 && boxes.every(i => i.checked);
+  ms.querySelector('summary').textContent = msValue(ms) || ms.dataset.ph;
 });
 function peopleOptions(sel) {
   return '<option value=""></option>' + DATA.people.map(p => '<option' + (p === sel ? ' selected' : '') + '>' + esc(p) + '</option>').join('');
@@ -1092,7 +1127,7 @@ function itemMenu(kind, id, ds) {
 }
 
 function editForm({ kind, it }) {
-  const isNew = !it;
+  const isNew = !it; if (isNew) RM_VAL = 0;
   it = it || { person: '', title: '', time: '', date: DATA.today, weekday: dow(DATA.today) };
   openDlg('<h3>' + (isNew ? 'הוספה ידנית' : 'עריכה') + '</h3><div class="form">' +
     (isNew ? '<label>סוג<select id="fKind"><option value="one">חד־פעמי</option><option value="rec">קבוע כל שבוע</option></select></label>' : '') +
@@ -1111,6 +1146,10 @@ function editForm({ kind, it }) {
     const v = { person: readWho(dlg), title: $('fTitle').value.trim(), time: $('fTime').value.trim() };
     if (isNew && remindOn()) { const r = readRemind(); if (r && (r === -1 || span(v.time))) v.remind = r; }
     if (!v.title) { $('fTitle').focus(); return; }
+    if (isNew && !v.person && !$('fSave').dataset.noWho) {
+      if (await askNoWho() === 'add') { openFirstWho(dlg); return; }
+      $('fSave').dataset.noWho = '1';
+    }
     const k2 = kindNow();
     if (isNew) {
       const probe = k2 === 'one' ? { type: 'add', date: $('fDate').value, ...v } : { type: 'add_recurring', weekday: +$('fDay').value, ...v };
