@@ -809,7 +809,7 @@ async function save(actions, isUndo) {
   const unmark = markBusy(actions);
   try {
     // מחיקה, ביטול ועריכה כבר מציגים חיווי על הפריט עצמו, אז בלי מסך הטשטוש
-    const quiet = actions.every(x => ['delete_item', 'delete_recurring', 'edit_item', 'edit_recurring', 'cancel', 'uncancel'].includes(x.type));
+    const quiet = !!isUndo || actions.every(x => ['delete_item', 'delete_recurring', 'edit_item', 'edit_recurring', 'cancel', 'uncancel', 'delete_birthday'].includes(x.type));
     DATA = await (quiet ? callQuiet : call)('applyActions', actions, { me: ME(), lines: actions.map(plain).filter(String), dates: affectedDates(actions) });
     unmark(); render();
     if (before && !isUndo) LAST_SAVED = { items: DATA.items.filter(i => i.type === 'oneoff' && !before.items.some(o => o.id === i.id)).map(i => i.id), rec: DATA.recurring.filter(r => !before.recurring.some(o => o.id === r.id)).map(r => r.id) };
@@ -846,7 +846,7 @@ function askWho(force) {
   if ($('wNo')) $('wNo').onclick = closeDlg;
   dlg.querySelectorAll('.who').forEach(b => b.onclick = async () => {
     setMe(b.dataset.n); updateMe(); closeDlg();
-    try { DATA = await call('ackSeen', ME(), Date.now()); render(); } catch (e) {}
+    try { DATA = await callQuiet('ackSeen', ME(), Date.now()); render(); } catch (e) {}
     setTimeout(maybeAskPush, 800);
   });
 }
@@ -864,9 +864,9 @@ function maybeShowNew() {
   const dates = [...new Set(u.flatMap(c => c.dates))].filter(d => d >= DATA.today).sort();
   openDlg('<h3>🔔 יש עדכון חדש בלו"ז</h3>' + u.map(c => '<div class="chg"><b>' + esc(c.who) + '</b> <small>' + ago(c.ts) + '</small><br>' + c.lines.map(esc).join('<br>') + '</div>').join('') +
     '<div class="row"><button class="btn primary" id="nOk">ראיתי ✓</button>' + (dates.length ? '<button class="btn" id="nShow">הצגה בלוח</button>' : '') + '</div>', true);
-  const ack = async () => { try { DATA = await call('ackSeen', ME(), max); } catch (e) {} closeDlg(); render(); };
+  const ack = async () => { try { DATA = await callQuiet('ackSeen', ME(), max); } catch (e) {} closeDlg(); render(); };
   $('nOk').onclick = ack;
-  if (dates.length) $('nShow').onclick = async () => { try { DATA = await call('ackSeen', ME(), max); } catch (e) {} render(); showDays(dates); };
+  if (dates.length) $('nShow').onclick = async () => { try { DATA = await callQuiet('ackSeen', ME(), max); } catch (e) {} render(); showDays(dates); };
 }
 let REFRESHING = false;
 async function refresh() {
@@ -946,6 +946,7 @@ function settings() {
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
+    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 23.11 18:29</p>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
