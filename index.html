@@ -490,6 +490,7 @@ function runDots(root, alive) {
 runDots(document.getElementById('splash'), () => !!document.getElementById('splash'));
 const SPLASH_MIN = 0; // מילישניות: המסך נשאר לפחות כל כך מרגע הפתיחה
 let SPLASH_HID = false;
+function splashWait() { try { return localStorage.getItem('splashWait') === '1'; } catch (e) { return false; } }
 function hideSplash() {
   if (SPLASH_HID) return; SPLASH_HID = true;
   setTimeout(() => { const sp = document.getElementById('splash'); if (!sp) return; sp.classList.add('out'); setTimeout(() => sp.remove(), 300); }, Math.max(0, SPLASH_MIN - performance.now()));
@@ -932,6 +933,7 @@ function settings() {
   openDlg('<h3>הגדרות</h3><p style="color:var(--muted);margin-top:0">חלות על המכשיר הזה בלבד.</p>' +
     '<b>גודל המיקרופון</b><div class="opt">' + Object.keys(MIC_SIZES).map(k => '<button class="btn' + (MIC_SIZES[k] === cur ? ' on' : '') + '" data-ms="' + MIC_SIZES[k] + '">' + k + '</button>').join('') + '</div>' +
     '<b>צבעים</b><div class="opt pal">' + Object.keys(PALETTES).map(n => '<button class="sw' + (n === palName() ? ' on' : '') + '" data-pal="' + n + '" aria-label="' + n + '"><i style="background:' + PALETTES[n].accent + '"></i><span>' + n + '</span></button>').join('') + '</div>' +
+    '<b>מסך הפתיחה</b><div class="opt"><button class="btn' + (!splashWait() ? ' on' : '') + '" data-sw="0">מיידי (מהנתונים השמורים)</button><button class="btn' + (splashWait() ? ' on' : '') + '" data-sw="1">עד שמגיעים נתונים עדכניים</button></div>' +
     '<b>סגנון ההחלקה בין שבועות</b><div class="opt"><button class="btn' + (swipeFx() === 'blur' ? ' on' : '') + '" data-fx="blur">טשטוש</button><button class="btn' + (swipeFx() === 'carousel' ? ' on' : '') + '" data-fx="carousel">קרוסלה</button></div>' +
     '<b>תזכורת לפני אירוע</b><div class="opt"><button class="btn' + (remindOn() ? ' on' : '') + '" data-rm="1">מופעלת</button><button class="btn' + (!remindOn() ? ' on' : '') + '" data-rm="0">כבויה</button></div><p class="note" style="margin:-8px 0 12px">כשמופעלת, בהוספת אירוע עם שעה אפשר לבחור תזכורת.</p>' +
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
@@ -941,6 +943,7 @@ function settings() {
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
   dlg.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { try { localStorage.setItem('remindOn', b.dataset.rm); } catch (e) {} settings(); });
+  dlg.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => { try { localStorage.setItem('splashWait', b.dataset.sw); } catch (e) {} settings(); });
   dlg.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { try { localStorage.setItem('swipeFx', b.dataset.fx); } catch (e) {} settings(); });
   $('sMicReset').onclick = () => { try { localStorage.removeItem('micPos'); } catch (e) {} const m = $('mic'); m.style.left = m.style.top = m.style.right = m.style.bottom = ''; };
   $('sWho').onclick = () => askWho(false);
@@ -1474,7 +1477,7 @@ if (!ME()) askWho(true); else { maybeShowNew(); setTimeout(maybeAskPush, 1500); 
     booted = true;
   };
   // פתיחה מיידית מהנתונים האחרונים שנשמרו במכשיר, ובמקביל מביאים את העדכניים
-  const c0 = loadCache(); if (c0) boot(c0);
+  const c0 = splashWait() ? null : loadCache(); if (c0) boot(c0);
   callQuiet('getData', ME()).then(d => {
     if (!booted) boot(d);
     else if (JSON.stringify(d) !== JSON.stringify(DATA)) { DATA = d; render(); maybeShowNew(); }
