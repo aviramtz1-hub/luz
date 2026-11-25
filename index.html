@@ -120,12 +120,13 @@
   .day-h b { font-size: 15px; }
   .day-h span { color: var(--muted); font-size: 13px; }
   .hol { background: var(--hol-bg); color: var(--hol); border-radius: 6px; padding: 0 6px; font-size: 12px; }
-  .item { display: block; width: 100%; text-align: right; background: none; border: 0; padding: 3px 0; cursor: pointer; line-height: 1.35; color: inherit; }
+  .item { display: flex; align-items: center; gap: 6px; width: 100%; text-align: right; background: none; border: 0; padding: 3px 5px; margin: 1px 0; border-radius: 6px; cursor: pointer; line-height: 1.35; color: inherit; }
+  .item .gut { width: 18px; flex: none; text-align: center; color: var(--star); }
+  .item .tx { flex: 1; min-width: 0; }
   .item:hover { background: #f1f1ee; }
   .item .who { font-weight: 700; }
   .item .t { color: var(--muted); font-size: 14px; white-space: nowrap; }
-  .item.one { background: var(--star-bg); border-radius: 6px; padding: 3px 5px; margin: 2px 0; }
-  .item.one::before { content: "★ "; color: var(--star); }
+  .item.one { background: color-mix(in srgb, var(--star-bg) 55%, transparent); }
   #btnUndo:disabled { opacity: .35; cursor: default; }
   .item.off { text-decoration: line-through; color: var(--muted); }
   .item.busy-edit, .item.busy-del { position: relative; border-radius: 8px; animation: busyGlow 1.2s ease-in-out infinite; background: linear-gradient(100deg, transparent 30%, var(--busy-sh) 50%, transparent 70%) 0 0/250% 100% no-repeat, var(--busy-bg); }
@@ -419,6 +420,12 @@ function bdayHtml(ds) {
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function isNew(e) { return !!(e.by && e.by !== ME() && e.ts > (DATA.seen || 0)); }
+// שורת אירוע בלוח: עמודת כוכב קבועה בימין (כך הטקסט מיושר), והתג "חופף" בצד שמאל
+function rowItem(e) {
+  return '<span class="gut">' + (e.kind === 'one' ? '★' : '') + '</span><span class="tx">' + (isNew(e) ? '<span class="new">חדש</span> ' : '') +
+    (e.person ? '<span class="who">' + esc(e.person) + '</span> ' : '') + esc(e.title) + (e.time ? ' <span class="t">' + esc(e.time) + '</span>' : '') + (e.remind ? ' <span class="bell" title="תזכורת">🔔</span>' : '') + '</span>' +
+    (e.clash ? '<span class="ovl' + (e.strong ? '' : ' soft') + '" title="חופף עם: ' + esc(e.clash) + '">חופף</span>' : '');
+}
 function line(e) {
   return (e.clash ? '<span class="ovl' + (e.strong ? '' : ' soft') + '" title="חופף עם: ' + esc(e.clash) + '">חופף</span> ' : '') + (isNew(e) ? '<span class="new">חדש</span> ' : '') + (e.person ? '<span class="who">' + esc(e.person) + '</span> ' : '') + esc(e.title) + (e.time ? ' <span class="t">' + esc(e.time) + '</span>' : '') + (e.remind ? ' <span class="bell" title="תזכורת">🔔</span>' : '');
 }
@@ -473,7 +480,7 @@ function weekHtml(w) {
       const ents = dayEntries(ds);
       html += '<div class="day' + cls + '" id="d-' + ds + '"><div class="day-h"><b>' + DAYS[d] + '</b><span>' + short(ds) + '</span>' + (fold ? '<span>· ' + (ents.length ? (ents.length === 1 ? 'פריט אחד' : ents.length + ' פריטים') : 'ריק') + ' ▾</span>' : hol + (isPast ? '<span>▴</span>' : '')) + '</div>';
       if (!fold) html += bdayHtml(ds);
-      if (!fold) html += ents.length ? ents.map(e => '<button class="item' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '" data-k="' + e.kind + '" data-id="' + esc(e.id) + '" data-date="' + ds + '">' + line(e) + '</button>').join('') : '<div class="empty">—</div>';
+      if (!fold) html += ents.length ? ents.map(e => '<button class="item' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '" data-k="' + e.kind + '" data-id="' + esc(e.id) + '" data-date="' + ds + '">' + rowItem(e) + '</button>').join('') : '<div class="empty">—</div>';
       html += '</div>';
     }
     html += '</div></section>';
@@ -892,7 +899,7 @@ function settings() {
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
-    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 23.11 18:32</p>' +
+    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 25.11 18:40</p>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
@@ -1054,7 +1061,7 @@ function dayBlock(ds) {
   const ents = dayEntriesAll(ds);
   return '<h4 class="dh">יום ' + DAYS[dow(ds)] + ' ' + short(ds) + ' ' + hol + '</h4>' +
     bdayHtml(ds) +
-    (ents.length ? ents.map(e => '<button class="item' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '" data-k="' + e.kind + '" data-id="' + esc(e.id) + '" data-date="' + ds + '">' + line(e) + '</button>').join('') : '<p class="empty">אין כלום ביום הזה.</p>');
+    (ents.length ? ents.map(e => '<button class="item' + (e.kind === 'one' ? ' one' : '') + (e.off ? ' off' : '') + '" data-k="' + e.kind + '" data-id="' + esc(e.id) + '" data-date="' + ds + '">' + rowItem(e) + '</button>').join('') : '<p class="empty">אין כלום ביום הזה.</p>');
 }
 function wireDayItems() { dlg.querySelectorAll('.item').forEach(b => b.onclick = () => itemMenu(b.dataset.k, b.dataset.id, b.dataset.date)); }
 
