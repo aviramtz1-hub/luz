@@ -151,6 +151,10 @@
   dialog { border: 1px solid var(--line); border-radius: 14px; padding: 16px; width: min(440px, calc(100vw - 32px)); }
   dialog::backdrop { background: rgba(0,0,0,.35); }
   dialog h3 { margin: 0 0 10px; font-size: 18px; }
+  dialog.narrow { width: min(300px, calc(100vw - 32px)); }
+  .dlg-actions.menu .btn { display: flex; align-items: center; gap: 10px; justify-content: flex-start; width: 100%; box-sizing: border-box; }
+  .dlg-actions.menu .mi { width: 22px; text-align: center; flex: none; font-size: 17px; line-height: 1; }
+  .dlg-actions.menu .mi.bx { display: inline-block; width: 18px; height: 18px; border: 1.6px solid currentColor; border-radius: 4px; font-size: 12px; line-height: 15px; font-weight: 700; margin-inline: 2px; }
   .dlg-actions { display: flex; flex-direction: column; gap: 8px; }
   .form { display: grid; gap: 8px; }
   .form label { display: grid; gap: 3px; font-size: 14px; color: var(--muted); }
@@ -806,7 +810,9 @@ $('btnUndo').onclick = async () => {
 
 // ---------- dialogs ----------
 const dlg = $('dlg');
-function openDlg(html, locked) { delete dlg.dataset.locked; if (locked) dlg.dataset.locked = '1'; dlg.innerHTML = html; if (!dlg.open) dlg.showModal(); }
+function openDlg(html, locked) { dlg.classList.remove('narrow'); delete dlg.dataset.locked; if (locked) dlg.dataset.locked = '1'; dlg.innerHTML = html; if (!dlg.open) dlg.showModal(); }
+function menuDlg(html) { openDlg(html); dlg.classList.add('narrow'); }
+const MI = (ic, cls) => '<span class="mi' + (cls ? ' ' + cls : '') + '">' + ic + '</span>';
 function closeDlg() { delete dlg.dataset.locked; if (dlg.open) dlg.close(); }
 dlg.addEventListener('click', e => { if (e.target === dlg && !dlg.dataset.locked) closeDlg(); });
 dlg.addEventListener('cancel', e => { if (dlg.dataset.locked) e.preventDefault(); });
@@ -921,7 +927,7 @@ function settings() {
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
-    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 27.11 09:05</p>' +
+    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 27.11 09:14</p>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
@@ -1123,11 +1129,11 @@ function showDays(dates, post) {
 function itemMenu(kind, id, ds) {
   if (kind === 'one') {
     const it = DATA.items.find(i => i.id === id); if (!it) return;
-    openDlg('<h3>' + line(it) + '</h3><div class="dlg-actions">' +
-      '<button class="btn" id="mEdit">עריכה</button>' +
-      '<button class="btn" id="mRec">🔁 להפוך לקבוע</button>' +
-      '<button class="btn danger" id="mDel">מחיקה</button>' +
-      '<button class="btn" id="mClose">סגירה</button></div>');
+    menuDlg('<h3>' + line(it) + '</h3><div class="dlg-actions menu">' +
+      '<button class="btn" id="mEdit">' + MI('✏️') + 'עריכה</button>' +
+      '<button class="btn danger" id="mDel">' + MI('🗑️') + 'מחיקה</button>' +
+      '<button class="btn" id="mRec">' + MI('🔁') + 'הפוך לקבוע</button>' +
+      '<button class="btn" id="mClose">' + MI('✕', 'bx') + 'סגירה</button></div>');
     $('mRec').onclick = () => {
       const wd = dow(it.date);
       openDlg('<h3>להפוך לקבוע?</h3><p class="note">"' + esc(line(it).replace(/<[^>]*>/g, '')) + '" יחזור <b>בכל יום ' + DAYS[wd] + '</b>.<br>הפריט החד־פעמי יוחלף בפריט קבוע, ואפשר יהיה לערוך אותו או לבטל יום בודד כרגיל.</p><div class="dlg-actions">' +
@@ -1145,12 +1151,12 @@ function itemMenu(kind, id, ds) {
   } else {
     const r = DATA.recurring.find(x => x.id === id); if (!r) return;
     const off = DATA.items.some(i => i.type === 'cancel' && i.recurringId === id && i.date === ds);
-    openDlg('<h3>' + line(r) + '</h3><p class="note">קבוע · כל יום ' + DAYS[r.weekday] + '</p><div class="dlg-actions">' +
-      (off ? '<button class="btn primary" id="mUn">מתקיים בכל זאת ב־' + short(ds) + '</button>'
-           : '<button class="btn primary" id="mOff">לא מתקיים ב־' + short(ds) + ' בלבד</button>') +
-      '<button class="btn" id="mEdit">עריכת הקבוע</button>' +
-      '<button class="btn danger" id="mDel">הסרה מהקבועים לגמרי</button>' +
-      '<button class="btn" id="mClose">סגירה</button></div>');
+    menuDlg('<h3>' + line(r) + '</h3><p class="note">קבוע · כל יום ' + DAYS[r.weekday] + '</p><div class="dlg-actions menu">' +
+      (off ? '<button class="btn primary" id="mUn">' + MI('↩️') + 'מתקיים בכל זאת ב־' + short(ds) + '</button>'
+           : '<button class="btn primary" id="mOff">' + MI('🚫') + 'לא מתקיים ב־' + short(ds) + ' בלבד</button>') +
+      '<button class="btn" id="mEdit">' + MI('✏️') + 'עריכת הקבוע</button>' +
+      '<button class="btn danger" id="mDel">' + MI('🗑️') + 'הסרה מהקבועים</button>' +
+      '<button class="btn" id="mClose">' + MI('✕', 'bx') + 'סגירה</button></div>');
     if (off) $('mUn').onclick = async () => { closeDlg(); await save([{ type: 'uncancel', recurringId: id, date: ds }]); };
     else $('mOff').onclick = async () => { closeDlg(); await save([{ type: 'cancel', recurringId: id, date: ds }]); };
     $('mEdit').onclick = () => editForm({ kind: 'rec', it: r });
