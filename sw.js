@@ -33,7 +33,14 @@ async function pushContent() {
     const lines = j.data.lines || [], kind = j.data.kind || 'update';
     if (kind === 'weekly') return { title: 'השבוע הקרוב בלו"ז', body: lines.join('\n'), tag: 'luz-week', sticky: false };
     if (kind === 'remind' && lines.length) return { title: 'תזכורת', body: lines.join('\n'), tag: 'luz-remind', sticky: true };
-    if (j.data.unseen && kind === 'update') return { title: 'יש עדכון חדש בלו"ז', body: lines.length ? 'היום:\n' + lines.join('\n') : 'לחצו כדי לראות.', tag: 'luz-update', sticky: true };
+    if (j.data.unseen && kind === 'update') {
+      const ch = j.data.changes || [], all = [];
+      ch.forEach(c => (c.lines || []).forEach(l => { if (l) all.push(l); }));
+      if (!all.length) return { title: 'יש עדכון חדש בלו"ז', body: 'לחצו כדי לראות.', tag: 'luz-update', sticky: true };
+      const who = ch.map(c => c.who).filter((w, i, a) => w && a.indexOf(w) === i);
+      const title = all.length > 1 ? all.length + ' עדכונים חדשים' + (who.length === 1 ? ' מ' + who[0] : '') : 'עדכון חדש' + (who.length === 1 ? ' מ' + who[0] : '');
+      return { title: title, body: all.slice(0, 4).join('\n') + (all.length > 4 ? '\n ועוד ' + (all.length - 4) : ''), tag: 'luz-update', sticky: true };
+    }
     if (lines.length) return { title: 'היום בלו"ז', body: lines.join('\n'), tag: 'luz-today', sticky: false };
   } catch (e) {}
   return generic;

@@ -126,7 +126,7 @@
   .item:hover { background: #f1f1ee; }
   .item .who { font-weight: 700; }
   .item .t { color: var(--muted); font-size: 14px; white-space: nowrap; }
-  .item.one { background: color-mix(in srgb, var(--star-bg) 55%, transparent); }
+  .item.one { background: color-mix(in srgb, var(--star-bg) 65%, transparent); }
   #btnUndo:disabled { opacity: .35; cursor: default; }
   .item.off { text-decoration: line-through; color: var(--muted); }
   .item.busy-edit, .item.busy-del { position: relative; border-radius: 8px; animation: busyGlow 1.2s ease-in-out infinite; background: linear-gradient(100deg, transparent 30%, var(--busy-sh) 50%, transparent 70%) 0 0/250% 100% no-repeat, var(--busy-bg); }
@@ -678,9 +678,14 @@ function plain(a) {
   if (a.type === 'add_recurring') return 'נוסף קבוע: ' + who + a.title + tm + ' (כל יום ' + DAYS[a.weekday] + ')';
   if (a.type === 'cancel') { const r = DATA.recurring.find(x => x.id === a.recurringId); return 'בוטל: ' + (r ? (r.person ? r.person + ' ' : '') + r.title : 'פריט קבוע') + ' (' + dayOf(a.date) + ')'; }
   if (a.type === 'uncancel') { const r = DATA.recurring.find(x => x.id === a.recurringId); return 'חזר להתקיים: ' + (r ? r.title : 'פריט קבוע') + ' (' + dayOf(a.date) + ')'; }
+  if (a.type === 'delete_item' && a.silent) return '';
   if (a.type === 'delete_item') { const i = DATA.items.find(x => x.id === a.itemId); return i ? 'הוסר: ' + (i.person ? i.person + ' ' : '') + i.title + ' (' + dayOf(i.date) + ')' : ''; }
   if (a.type === 'delete_recurring') { const r = DATA.recurring.find(x => x.id === a.recurringId); return r ? 'הוסר קבוע: ' + (r.person ? r.person + ' ' : '') + r.title : ''; }
-  if (a.type === 'edit_item') return 'עודכן: ' + who + a.title + tm + (a.date ? ' (' + dayOf(a.date) + ')' : '');
+  if (a.type === 'edit_item') {
+    const o = DATA.items.find(x => x.id === a.itemId);
+    const was = o && (o.time !== (a.time || '') || o.date !== a.date) ? ' · היה: ' + [o.time, o.date !== a.date ? dayOf(o.date) : ''].filter(Boolean).join(' ') : '';
+    return 'עודכן: ' + who + a.title + tm + (a.date ? ' (' + dayOf(a.date) + ')' : '') + was;
+  }
   if (a.type === 'edit_recurring') return 'עודכן קבוע: ' + who + a.title + tm + ' (כל יום ' + DAYS[a.weekday] + ')';
   return '';
 }
@@ -899,7 +904,7 @@ function settings() {
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
-    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 25.11 18:40</p>' +
+    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 27.11 09:01</p>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
@@ -1103,8 +1108,21 @@ function itemMenu(kind, id, ds) {
     const it = DATA.items.find(i => i.id === id); if (!it) return;
     openDlg('<h3>' + line(it) + '</h3><div class="dlg-actions">' +
       '<button class="btn" id="mEdit">עריכה</button>' +
+      '<button class="btn" id="mRec">🔁 להפוך לקבוע</button>' +
       '<button class="btn danger" id="mDel">מחיקה</button>' +
       '<button class="btn" id="mClose">סגירה</button></div>');
+    $('mRec').onclick = () => {
+      const wd = dow(it.date);
+      openDlg('<h3>להפוך לקבוע?</h3><p class="note">"' + esc(line(it).replace(/<[^>]*>/g, '')) + '" יחזור <b>בכל יום ' + DAYS[wd] + '</b>.<br>הפריט החד־פעמי יוחלף בפריט קבוע, ואפשר יהיה לערוך אותו או לבטל יום בודד כרגיל.</p><div class="dlg-actions">' +
+        '<button class="btn primary" id="rYes">כן, להפוך לקבוע</button><button class="btn" id="rNo">לא עכשיו</button></div>');
+      $('rNo').onclick = closeDlg;
+      $('rYes').onclick = async () => {
+        closeDlg();
+        const add = { type: 'add_recurring', weekday: wd, person: it.person, title: it.title, time: it.time };
+        if (serverV5()) add.remind = it.remind || 0;
+        await save([add, { type: 'delete_item', itemId: id, silent: true }]);
+      };
+    };
     $('mEdit').onclick = () => editForm({ kind: 'one', it });
     $('mDel').onclick = async () => { closeDlg(); await save([{ type: 'delete_item', itemId: id }]); };
   } else {
