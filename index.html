@@ -2,6 +2,9 @@
 <html lang="he" dir="rtl">
 <head>
 <base target="_top">
+<title>הלו&quot;ז שלנו</title>
+<meta name="application-name" content="הלו&quot;ז שלנו">
+<meta name="apple-mobile-web-app-title" content="הלו&quot;ז שלנו">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -182,7 +185,7 @@
   .lis-r { display: flex; gap: 8px; }
   #print { display: none; }
   @media print {
-    @page { size: A4 portrait; margin: 9mm; }
+    @page { size: A4 landscape; margin: 7mm; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     html, body { background: #fff; }
     .app, dialog, .mic, .listening { display: none !important; }
@@ -195,6 +198,20 @@
     #print.th-clean  { --b1: #2b6cb0; --b2: #2b6cb0; --b3: #2b6cb0; --b4: #2b6cb0; --ink: #1a1a1a; --cell: #fff; --we: #f3f4f6; --line: 0 solid transparent; --rad: 0; --gap: 0px; --dayink: #1f4e8c; --acc: #1f4e8c; }
     #print.th-warm   { --b1: #e9b8a0; --b2: #f0cfa0; --b3: #cfd9a8; --b4: #b9d3cf; --ink: #3a2a1d; --cell: #fffaf0; --we: #fbefd9; --line: 1px solid #e3d3b5; --rad: 9px; --gap: 5px; --dayink: #8a4b2a; --acc: #b5532a; }
 
+    #print .pg { height: 195mm; display: flex; flex-direction: column; gap: 8mm; justify-content: center; color: #111; }
+    #print .wk { flex: 1 1 0; max-height: 42mm; display: flex; border: 1px solid #444; }
+    #print .wl { width: 20mm; background: var(--c); font-weight: 700; font-size: 9pt; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-inline-start: 1px solid #444; padding: 2px; }
+    #print .wl small { font-weight: 400; font-size: 7.5pt; }
+    #print .dy { flex: 1; border-inline-start: 1px solid #999; padding: 3px 4px; font-size: 9.5pt; min-width: 0; }
+    #print .dy.we { background: #f3f8fc; }
+    #print .dh { font-weight: 700; font-size: 9.5pt; border-bottom: 1px solid #ccc; margin-bottom: 1px; }
+    #print .hol { font-size: 6.5pt; font-weight: 500; color: #555; }
+    #print .li { padding: 0.5px 0; line-height: 1.2; }
+    #print .li::before { content: "– "; color: #666; }
+    #print .li.one { font-weight: 700; } #print .li.one::before { content: "★ "; color: #b45309; }
+    #print .li.bd { color: #a8325f; font-weight: 700; } #print .li.bd::before { content: ""; }
+    #print .li.off { text-decoration: line-through; color: #777; }
+    #print .ovl { display: none; }
     .pp { page-break-after: always; break-after: page; font-size: 12.5pt; color: var(--ink); }
     .pp:last-child { page-break-after: auto; break-after: auto; }
     .pp h1, .pp h2 { margin: 0 0 4px; padding: 5px 12px; font-weight: 700; border-radius: var(--rad); background: var(--bar); color: #111; border: var(--line); }
@@ -904,7 +921,7 @@ function settings() {
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
-    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 27.11 09:01</p>' +
+    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 27.11 09:05</p>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
@@ -1225,20 +1242,23 @@ function twoWeekTable(ws1, ws2, r1, r2) {
   return h + '</table>';
 }
 const PRINT_THEMES = { excel: 'כמו הקובץ המקורי', pastel: 'פסטל', clean: 'נקי ומינימלי', warm: 'חם ועדין' };
-function buildPrint(theme) {
-  theme = theme || (function () { try { return localStorage.getItem('printTheme'); } catch (e) { return null; } })() || 'excel';
-  $('print').className = 'th-' + theme;
+function buildPrint() {
   const s = windowStart(DATA.today);
-  const w = i => addDays(s, i * 7);
-  const range = ws => '<bdi dir="ltr">' + rangeLabel(ws) + '</bdi>';
-  const end = addDays(s, 28);
-  const later = DATA.items.filter(i => i.type === 'oneoff' && i.date >= end).sort((a, b) => a.date < b.date ? -1 : 1).slice(0, 8);
-  $('print').innerHTML =
-    '<div class="pp big w1"><h1>השבוע הקרוב · ' + range(w(0)) + '</h1>' + weekTable(w(0)) + '</div>' +
-    '<div class="pp big w2"><h1>שבוע הבא · ' + range(w(1)) + '</h1>' + weekTable(w(1)) + '</div>' +
-    '<div class="pp">' + twoWeekTable(w(2), w(3), range(w(2)), range(w(3))) +
-      (later.length ? '<div class="later"><b>בהמשך:</b> ' + later.map(i => DAYS_SHORT[dow(i.date)] + ' ' + short(i.date) + ' ' + (i.person ? esc(i.person) + ' ' : '') + esc(i.title)).join(' · ') + '</div>' : '') +
-    '</div>';
+  const COL = ['#8fd3f4', '#fbd3b0', '#c4e5b5', '#fbe8a0'];
+  const NM = ['השבוע', 'שבוע הבא', 'עוד שבועיים', 'עוד 3 שבועות'];
+  let h = '<div class="pg">';
+  for (let w = 0; w < 4; w++) {
+    const ws = addDays(s, w * 7);
+    h += '<div class="wk" style="--c:' + COL[w] + '"><div class="wl">' + NM[w] + '<small dir="ltr">' + rangeLabel(ws) + '</small></div>';
+    for (let d = 0; d < 7; d++) {
+      const ds = addDays(ws, d);
+      const hol = (HOL[ds] || []).map(esc).join(' ');
+      h += '<div class="dy' + (d >= 5 ? ' we' : '') + '"><div class="dh">' + DAYS[d] + ' ' + short(ds) + '</div>' + (hol ? '<div class="hol">' + hol + '</div>' : '') + printLines(ds) + '</div>';
+    }
+    h += '</div>';
+  }
+  $('print').className = '';
+  $('print').innerHTML = h + '</div>';
 }
 
 // ---------- voice ----------
@@ -1414,18 +1434,7 @@ $('txt').addEventListener('dragover', e => { if ([...(e.dataTransfer.items || []
 $('txt').addEventListener('drop', e => { const f = [...(e.dataTransfer.files || [])].find(x => /^image\//.test(x.type)); if (f) { e.preventDefault(); submitPhoto(f); } });
 $('btnManual').onclick = () => editForm({ kind: 'one', it: null });
 $('btnRec').onclick = recurringList;
-$('btnPrint').onclick = () => {
-  let cur = 'excel'; try { cur = localStorage.getItem('printTheme') || 'excel'; } catch (e) {}
-  openDlg('<h3>הדפסה</h3><div class="form">' + Object.keys(PRINT_THEMES).map(k =>
-    '<label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:16px"><input type="radio" name="pt" value="' + k + '"' + (k === cur ? ' checked' : '') + '> ' + PRINT_THEMES[k] + '</label>').join('') +
-    '</div><div class="row"><button class="btn primary" id="pGo">הדפסה</button><button class="btn" id="pNo">ביטול</button></div>');
-  $('pNo').onclick = closeDlg;
-  $('pGo').onclick = () => {
-    const v = dlg.querySelector('input[name=pt]:checked').value;
-    try { localStorage.setItem('printTheme', v); } catch (e) {}
-    closeDlg(); buildPrint(v); setTimeout(() => window.print(), 50);
-  };
-};
+$('btnPrint').onclick = () => { buildPrint(); setTimeout(() => window.print(), 50); };
 $('weeks').addEventListener('click', e => { const b = e.target.closest('.item'); if (b) itemMenu(b.dataset.k, b.dataset.id, b.dataset.date); });
 
 if (STANDALONE && !K) {
