@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#1f6feb">
 <script>if('serviceWorker' in navigator) addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});</script>
+<meta name="luz-build" content="28.11 18:39">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -144,6 +145,7 @@
   #busy { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9000; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 40% 100%; background-repeat: no-repeat; animation: bslide 1s linear infinite; display: none; }
   #busyPill { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9001; background: #222; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 14px; display: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
   body.isbusy #busy, body.isbusy #busyPill { display: block; }
+  #newVer { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9002; background: #1f6feb; color: #fff; padding: 10px 18px; border-radius: 22px; font-size: 15px; border: 0; box-shadow: 0 4px 14px rgba(0,0,0,.3); cursor: pointer; }
   @keyframes bslide { from { background-position: -40% 0; } to { background-position: 140% 0; } }
   .btn.crimson { background: #a3173a; border-color: #a3173a; color: #fff; font-weight: 500; }
 
@@ -878,6 +880,30 @@ async function refresh() {
   } catch (e) {} finally { REFRESHING = false; }
 }
 setInterval(refresh, 30000);
+// ---------- עדכון גרסה אוטומטי ----------
+const BUILD_ID = '28.11 18:39';
+let VER_BUSY = false;
+async function checkVersion(fromBg) {
+  if (VER_BUSY || BUILD_ID === 'test' || BUILD_ID.indexOf('__') === 0) return;
+  VER_BUSY = true;
+  try {
+    const r = await fetch(location.pathname + '?vc=' + Date.now(), { cache: 'no-store' });
+    const m = (await r.text()).match(new RegExp('luz-build' + '" content="([^"]*)"'));
+    if (m && m[1] !== BUILD_ID) {
+      const idle = !dlg.open && !$('txt').value.trim() && !REC;
+      if (fromBg && idle) { location.reload(); return; }
+      if (!$('newVer')) {
+        const b = document.createElement('button'); b.id = 'newVer'; b.textContent = '🔄 יש גרסה חדשה · לחיצה לעדכון';
+        b.onclick = () => location.reload(); document.body.appendChild(b);
+      }
+    }
+  } catch (e) {} finally { VER_BUSY = false; }
+}
+setTimeout(() => checkVersion(false), 4000);
+setInterval(() => { if (!document.hidden) checkVersion(false); }, 300000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(true); });
+window.addEventListener('online', () => { refresh(); checkVersion(false); });
+
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 $('btnMe').onclick = () => askWho(false);
 
@@ -945,7 +971,7 @@ function settings() {
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
-    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 28.11 18:05</p>' +
+    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 28.11 18:39</p>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
