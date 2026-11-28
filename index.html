@@ -845,9 +845,10 @@ function maybeShowNew() {
   const dates = [...new Set(u.flatMap(c => c.dates))].filter(d => d >= DATA.today).sort();
   openDlg('<h3>🔔 יש עדכון חדש בלו"ז</h3>' + u.map(c => '<div class="chg"><b>' + esc(c.who) + '</b> <small>' + ago(c.ts) + '</small><br>' + c.lines.map(esc).join('<br>') + '</div>').join('') +
     '<div class="row"><button class="btn primary" id="nOk">ראיתי ✓</button>' + (dates.length ? '<button class="btn" id="nShow">הצגה בלוח</button>' : '') + '</div>', true);
-  const ack = async () => { try { DATA = await callQuiet('ackSeen', ME(), max); } catch (e) {} closeDlg(); render(); };
+  const bg = () => { callQuiet('ackSeen', ME(), max).then(d => { DATA = d; render(); }).catch(() => {}); };
+  const ack = () => { DATA.seen = Math.max(DATA.seen || 0, max); closeDlg(); render(); bg(); };
   $('nOk').onclick = ack;
-  if (dates.length) $('nShow').onclick = async () => { try { DATA = await callQuiet('ackSeen', ME(), max); } catch (e) {} render(); showDays(dates); };
+  if (dates.length) $('nShow').onclick = () => { DATA.seen = Math.max(DATA.seen || 0, max); closeDlg(); render(); showDays(dates); bg(); };
 }
 let REFRESHING = false;
 async function refresh() {
@@ -927,7 +928,7 @@ function settings() {
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
-    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 27.11 09:51</p>' +
+    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 28.11 17:52</p>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
