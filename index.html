@@ -383,11 +383,28 @@ function rangeLabel(ws) {
   return m1 === m2 ? d1 + '-' + d2 + '.' + m1 : d1 + '.' + m1 + '-' + d2 + '.' + m2;
 }
 function short(ds) { const [, m, d] = ds.split('-').map(Number); return d + '.' + m; }
-function windowStart(today) {
-  // השבוע הקרוב מתחיל ביום ראשון. בשבת כבר מציגים את השבוע הבא.
-  const w = dow(today);
-  return w === 6 ? addDays(today, 1) : addDays(today, -w);
+// שבת: מציגים את השבוע הבא. אין אירועים בשבת: כבר מהבוקר. אירועים שנגמרים עד 14:00: מ-14:00. אחרת: מ-18:00.
+function satSwitched(today) {
+  if (dow(today) !== 6 || typeof DATA === 'undefined' || !DATA) return false;
+  const ents = dayEntriesAll(today).filter(e => !e.off);
+  if (!ents.length) return true;
+  const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
+  const lastEnd = Math.max(...ents.map(e => { const sp = span(e.time); return sp ? sp[1] : 1440; }));
+  return m >= (lastEnd <= 14 * 60 ? 14 * 60 : 18 * 60);
 }
+function windowStart(today) {
+  const w = dow(today);
+  return w === 6 ? (satSwitched(today) ? addDays(today, 1) : addDays(today, -6)) : addDays(today, -w);
+}
+let LAST_SW = null;
+function maybeWeekPassed() {
+  if (!DATA || dlg.open || !satSwitched(DATA.today)) return;
+  const key = 'wkp:' + windowStart(DATA.today);
+  try { if (localStorage.getItem(key)) return; } catch (e) {}
+  openDlg('<h3>💪 עוד שבוע חלף!</h3><p>מעכשיו מוצג השבוע הקרוב.</p><div class="row"><button class="btn primary" id="wpOk">👏 קיבלתי, תודה</button></div>');
+  $('wpOk').onclick = () => { try { localStorage.setItem(key, '1'); } catch (e) {} closeDlg(); };
+}
+setInterval(() => { if (!DATA || document.hidden) return; const sw = satSwitched(DATA.today); if (LAST_SW !== null && sw !== LAST_SW) { render(); maybeWeekPassed(); } LAST_SW = sw; }, 60000);
 function timeKey(t) { const m = String(t || '').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : -1; }
 
 // ---------- model ----------
@@ -840,7 +857,7 @@ function ago(ts) {
 function unseen() { return (DATA.changes || []).filter(c => c.who && c.who !== ME() && c.ts > (DATA.seen || 0)); }
 function maybeShowNew() {
   if (!DATA || !ME() || dlg.open) return;
-  const u = unseen(); if (!u.length) return;
+  const u = unseen(); if (!u.length) { maybeWeekPassed(); return; }
   const max = Math.max(...u.map(c => c.ts));
   const dates = [...new Set(u.flatMap(c => c.dates))].filter(d => d >= DATA.today).sort();
   openDlg('<h3>🔔 יש עדכון חדש בלו"ז</h3>' + u.map(c => '<div class="chg"><b>' + esc(c.who) + '</b> <small>' + ago(c.ts) + '</small><br>' + c.lines.map(esc).join('<br>') + '</div>').join('') +
@@ -928,7 +945,7 @@ function settings() {
     '<b>מיקום המיקרופון</b><div class="opt"><button class="btn" id="sMicReset">החזרה לפינה</button></div>' +
     (pushSupported() ? '<b>התראות בטלפון הזה</b><div class="opt"><button class="btn" id="sPush">' + (pushOn() ? 'פעילות ✓ (שליחה מחדש)' : 'הפעלה') + '</button></div>' : '') +
     '<b>מי משתמש במכשיר</b><div class="opt"><button class="btn" id="sWho">' + esc(ME() || 'בחירה') + ' (החלפה)</button></div>' +
-    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 28.11 17:52</p>' +
+    '<p class="note" style="text-align:center;margin:10px 0 0">גרסת האפליקציה: 28.11 18:05</p>' +
     '<div class="row"><button class="btn primary" id="sClose">סגירה</button></div>');
   dlg.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('micSize', b.dataset.ms); } catch (e) {} applyMicSize(); settings(); });
   dlg.querySelectorAll('[data-pal]').forEach(b => b.onclick = () => { closeDlg(); choosePalette(b.dataset.pal); });
